@@ -65,7 +65,7 @@
 \def\DeptType{Department}
 
 % Thesis supervisor: name, surname and titles
-\def\Supervisor{Ph.D. Pavel Parízek}
+\def\Supervisor{Mgr. Pavel Parízek, Ph.D.}
 
 % Supervisor's department (again according to Organizational structure of MFF)
 \def\SupervisorsDepartment{Department of Distributed and Dependable Systems}
@@ -112,8 +112,90 @@ TODO: Abstract
 
 %%% Each chapter is kept in a separate file
 \include{preface}
-\include{chap01}
-\include{chap02}
+\chapter{Project Goals}
+\chapter{Similar Work}
+\section{Google Dapper}
+\section{Zipkin}
+\chapter{Analysis}
+\section{Instrumentation libraries}
+\subsection{Javassist}
+\subsection{ByteBuddy}
+\subsection{CGlib}
+\subsection{ASM}
+.. just give brief overview what were the instrumentation libreries choices. The selected one will be describied in the next section
+\section{Communication Middleware}
+\subsection{ZeroMQ}
+\subsection{NanoMSG}
+
+\section{Comparison of Agent Approaches}
+\subsection{Java Agent Solution}
+\subsection{Native Agent Solution}
+
+\chapter{Used Technologies}
+\section{Java}
+\subsection{Class Initialization Process}
+\subsection{JVMTI}
+\subsection{JNI}
+\subsection{ClassLoaders}
+\section{ByteBuddy}
+\subsection{Main Concept}
+\subsection{Transformers}
+\subsection{Intereptors}
+\subsection{Class File Locator}
+\subsection{Advice API}
+\section{NanoMgs}
+\subsection{C++11 Mapping}
+\subsection{Java Mapping}
+
+\section{spdlog}
+logging library used
+\chapter{Platform Architecture}
+\section{Architecture Description}
+\section{Communication}
+
+\chapter{Native Agent}
+\section{Structure Overview}
+\section{Instrumentation API}
+\section{Byte Class Parsing}
+\section{Instrumentation}
+\section{Native Agent Arguments}
+\chapter{Instrumentation Server}
+\section{Instrumentation Handling}
+\section{Communication modes}
+\section{Class Caching}
+\chapter{Instrumentation Library}
+\section{Custom Service Loader}
+\section{Public interfaces}
+\section{Extending the Library}
+.. instrumentation server can run on the same node or over the network. Instrumentation server can have client code attached or not.
+\section{ClassLoaders}
+\section{JSON Generation}
+\chapter{User Interface}
+\section{Zipkin Overview}
+\section{Zipkin Data Model}
+\section{Zipkin JSON Format}
+\chapter{Collectors}
+Should I mention the collectors ? It may be sufficient to have send data right to zipkin for demonstration purposes
+\chapter{Deployment Strategies}
+\section{Instrumentor on the same node with the Application}
+\section{Instrumentor available over the Network}
+\section{Bundling the application classes with the Instrumentor}
+\chapter{Platform demonstration}
+\section{Bulding Monitoring tool on top of Distrace}
+\section{Basic Demonstration}
+\section{Optimizing the instrumentation}
+\chapter{Future plans}
+\section{Integration with well-known data collectors}
+\section{Add support for Flame charts}
+\chapter{Docker Support}
+\chapter{Conclusion}
+An~example citation: \cite{Andel07}
+
+\section{Title of the first subchapter of the first chapter}
+
+\section{Title of the second subchapter of the first chapter}
+
+
 
 \include{epilog}
 
