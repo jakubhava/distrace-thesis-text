@@ -1,0 +1,24 @@
+\chapter{Design}
+\section{Native Agent}
+\subsection{Structure Overview}
+\subsection{Instrumentation}
+mention issues with circular dependencies but leave how it is implemented into the next chapter
+\subsection{Instrumentation API}
+\subsection{Native Agent Arguments}
+\subsection{Used JVMTI Callbacks}
+\section{Instrumentation Server}
+\subsection{Instrumentation Protocol }
+\subsection{Communication Modes}
+\subsection{Class Caching}
+\subsection{Custom Service Loader}
+\subsection{Public interfaces}
+\subsection{Extending the Server}
+.. instrumentation server can run on the same node or over the network. Instrumentation server can have client code attached or not.
+\subsection{Class Loaders}
+\subsection{JSON Generation}
+\section{User Interface}
+\subsection{Zipkin Overview}
+\subsection{Zipkin Data Model}
+\subsection{Zipkin JSON Format}
+\section{Collectors}
+Should I mention the collectors ? It may be sufficient to have send data right to zipkin for demonstration purposes

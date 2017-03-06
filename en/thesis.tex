@@ -82,7 +82,7 @@ I would like to thank my thesis supervisor Mgr. Pavel Parízek, Phd. for leading
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-The main goal of this thesis is to create a monitoring platform and library which can be used to monitor distributed Java-based applications. This work is based on Google Dapper and shares a concept called "Span" with it. Spans encapsulate set of calls among multiple communicating hosts and in order to be able to capture them without the need of changing the original application, instrumentation techniques are highly used in the thesis. The thesis consists of multiple parts: the native agent and instrumentation library and server. The users of this platform need to extend the instrumentation library and specify the points in their application's code where new spans should be created and closed. In order to achieve high performance and affect the running application least as possible, the instrumentation server is used for instrumenting the code. All classes marked for instrumentation are sent to the server which alters the byte code and caches the changed byte-code for the future instrumentation requests from other nodes.
+The main goal of this thesis is to create a monitoring platform and library which can be used to monitor distributed Java-based applications. This work is based on Google Dapper and shares a concept called "Span" with it. Spans encapsulate set of calls among multiple communicating hosts and in order to be able to capture them without the need of changing the original application, instrumentation techniques are highly used in the thesis. The thesis consists of 2 parts: the native agent and instrumentation server. The users of this platform need to extend the instrumentation server and specify the points in their application's code where new spans should be created and closed. In order to achieve high performance and affect the running application least as possible, the instrumentation server is used for instrumenting the code. All classes marked for instrumentation are sent to the server which alters the byte code and caches the changed byte-code for the future instrumentation requests from other nodes.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
@@ -112,105 +112,15 @@ The main goal of this thesis is to create a monitoring platform and library whic
 
 %%% Each chapter is kept in a separate file
 %%\include{preface}
-\chapter{Introduction}
-\section{Project Goals}
-
-\chapter{Analysis}
-\section{Background and Tools }
-\subsection{Monitoring Tools}
-\subsection{Profiling Tools}
-\subsubsection{System Profilers}
-\subsubsection{Application Specific Profilers}
-\section{Related Work}
-\subsection{Google Dapper}
-\subsection{Zipkin}
-\section{Instrumentation libraries}
-\subsection{Javassist}
-\subsection{ByteBuddy}
-\subsection{CGlib}
-\subsection{ASM}
-.. just give brief overview what were the instrumentation libreries choices. The selected one will be describied in the next section
-\section{Communication Middleware}
-\subsection{ZeroMQ}
-\subsection{NanoMSG}
-\section{Comparison of Agent Approaches}
-\subsection{Java Agent Solution}
-\subsection{Native Agent Solution}
-
-
-\chapter{Related Technologies}
-\section{Java}
-\subsection{Class Initialization Process}
-\subsection{JVMTI}
-\subsection{JNI}
-\subsection{ClassLoaders}
-\section{ByteBuddy}
-\subsection{Main Concept}
-\subsection{Transformers}
-\subsection{Intereptors}
-\subsection{Class File Locator}
-\subsection{Advice API}
-\section{NanoMgs}
-\subsection{C++11 Mapping}
-\subsection{Java Mapping}
-\section{spdlog}
-logging library used
-
-
-\chapter{Overview}
-\section{Architecture Description}
-\section{Communication}
-
-\chapter{Design/Architecture}
-\section{Native Agent}
-\subsection{Structure Overview}
-\subsection{Instrumentation API}
-\subsection{Byte Class Parsing}
-\subsection{Instrumentation}
-\subsection{Native Agent Arguments}
-\section{Instrumentation Server}
-\subsection{Instrumentation Handling}
-\subsection{Communication modes}
-\subsection{Class Caching}
-\section{Instrumentation Library}
-\subsection{Custom Service Loader}
-\subsection{Public interfaces}
-\subsection{Extending the Library}
-.. instrumentation server can run on the same node or over the network. Instrumentation server can have client code attached or not.
-\subsection{ClassLoaders}
-\subsection{JSON Generation}
-\section{User Interface}
-\subsection{Zipkin Overview}
-\subsection{Zipkin Data Model}
-\subsection{Zipkin JSON Format}
-\section{Collectors}
-Should I mention the collectors ? It may be sufficient to have send data right to zipkin for demonstration purposes
-\section{Docker Support}
-
-
-\chapter{Implementation Details}
-Mention interesting parts of the implementation
-\section{Native Agent}
-\section{Instrumentation Library}
-
-\chapter{Evaluation}
-\section{Deployment Strategies}
-\subsection{Instrumentor on the same node with the Application}
-\subsection{Instrumentor available over the Network}
-\subsection{Bundling the application classes with the Instrumentor}
-\section{Platform demonstration}
-\subsection{Bulding Monitoring tool on top of Distrace}
-\subsection{Basic Demonstration}
-\subsection{Optimizing the instrumentation}
-\chapter{Conclusion}
-\section{Comparison to Related Work}
-\section{Future plans}
-\subsection{Integration with well-known data collectors}
-\subsection{Add support for Flame charts}
+\include{introduction}
+\include{analysis}
+\include{technologies}
+\include{overview}
+\include{design}
+\include{implementation}
+\include{Evaluation}
+\include{Conclusion}
 An~example citation: \cite{Andel07}
-
-
-\include{epilog}
 
 %%% Bibliography
 \include{bibliography}
