@@ -3,6 +3,22 @@ This chapter gives overview of two significant related platforms on which this w
 \section{Related Work}
 The most significant platforms to this thesis are Google Dapper and Zipkin, where Zipkin is based on the previous. Both serves the same core purpose which is to monitor large-scale Java based distributed applications. This thesis is based mainly on Google Dapper but also uses helpful Zipkin modules such as the user interface. Since Zipkin is developed according to Google Dapper design, these two platforms shares very similar concepts. The most important concept is a Span and it is explained in more details in the  \hyperref[subsec:Spans]{Spans} section. For now, we can think of a span as time slots encapsulating several calls from one node to another with well-defined start and end of the communication. The following two sections describes the basics of both of the mentioned platform.
 \subsection{Google Dapper}
+Google Dapper is proprietary software which was mainly developed as a tool for monitoring large distributed applications since debugging and reasoning about applications running on multiple host at the same time, sometimes written in different programming languages is inherently complex. Google Dapper has 3 main pillars on which is built:
+\begin{itemize}
+	\item Low overhead
+	It was assumed that such a tool should share the same life-cycle as the monitored application itself thus low overhead was on of the main design goals as well. Google dapper 
+	\item Application level transparency
+	The developers and users of the application should not know about the monitoring tool and are not supposed to change the way how they interact with the system. It can be assumed from the paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced in the Google shares the same libraries and control flow.
+	\item Scalability
+	Such a system should perform well on large scale data.
+\end{itemize}	
+Google Dapper collects so called distributed traces. The origin of the distributed trace is the communication/task initiator. This is demonstrated at the figure ...
+	
+There were two proposals for obtaining this information - using the black-box and annotation-based monitoring approaches. The first one assumes no additional knowledge about the application whereas the second can use of additional information via annotations. Dapper is mainly using black-box monitoring schema since most of the control flow and RPC subsystems are shared among Google.
+	
+	Trace trees and spans
+
+
 \subsection{Zipkin}
 
 \section{Background and Tools}
