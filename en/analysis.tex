@@ -12,7 +12,7 @@ Google Dapper is proprietary software which was mainly developed as a tool for m
 	\item Scalability
 	Such a system should perform well on large scale data.
 \end{itemize}	
-Google Dapper collects so called distributed traces. The origin of the distributed trace is the communication/task initiator. This is demonstrated at the figure ...
+Google Dapper collects so called distributed traces. The origin of the distributed trace is the communication/task initiator and the trace spans across the nodes in the cluster which took part as the computation/communication.
 	
 There were two proposals for obtaining this information - using the black-box and annotation-based monitoring approaches. The first one assumes no additional knowledge about the application whereas the second can use of additional information via annotations. Dapper is mainly using black-box monitoring schema since most of the control flow and RPC subsystems are shared among Google.
 	
