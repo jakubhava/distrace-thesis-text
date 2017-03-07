@@ -1,4 +1,10 @@
 \chapter{Analysis}
+This chapter gives overview of two significant related platforms on which this work depends - Google Dapper and Zipkin. It continues with description of several background concepts and tools which are to some level relevant to the thesis, such as tools for large scale debugging, tools for visualizing the monitored data and also several profiling tools and their comparison. The libraries for bytecode instrumentation and different communication middle-wares are described in detail as the selected libraries affect the platform at very low level. This chapter ends with a comparison of different approaches to instrumenting Java applications.
+\section{Related Work}
+The most significant platforms to this thesis are Google Dapper and Zipkin, where Zipkin is based on the previous. Both serves the same core purpose which is to monitor large-scale Java based distributed applications. This thesis is based mainly on Google Dapper but also uses helpful Zipkin modules such as the user interface. Since Zipkin is developed according to Google Dapper design, these two platforms shares very similar concepts. The most important concept is a Span and it is explained in more details in the  \hyperref[subsec:Spans]{Spans} section. For now, we can think of a span as time slots encapsulating several calls from one node to another with well-defined start and end of the communication. The following two sections describes the basics of both of the mentioned platform.
+\subsection{Google Dapper}
+\subsection{Zipkin}
+
 \section{Background and Tools}
 \subsection{Tools for Large-Scale Debugging}
 \subsection{Tools for Visualizations the Captured Data}
@@ -9,9 +15,6 @@
 \subsubsection{JVM Profilers}
 Write about AsyncGetCallTrace
 
-\section{Related Work}
-\subsection{Google Dapper}
-\subsection{Zipkin}
 
 
 \section{Instrumentation Libraries}
