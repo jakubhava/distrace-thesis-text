@@ -70,21 +70,40 @@ Once the span is created, it is sent to Zipkin, in more details, to Zipkin colle
  The reason why Zipkin UI was selected as the primary user interface for this work is mainly it's simplicity and ease of use. Also it fulfills the visualization requirements of the thesis as well, since we need to see dependencies between spans and also whole trace tree as well. However the monitoring platform is not tightly-coupled with this user interface. We will see later how to create custom span savers which can store data in any format suitable for different visualization tools.
  
 \section{Background and Tools}
-This section covers related tools to the thesis. They are not necessarily used in the thesis, but are important tools used for the monitoring and debugging various kind of applications. The most important tools mentioned in this section are the ones for debugging large scale applications, tools for visualizing the captured data and the most importantly, two kinds of profiling tools.
+This section covers related tools to the thesis. They are not necessarily used in the thesis, but are important tools used for the monitoring and debugging various kind of applications. The most important tools mentioned in this section are the ones for debugging large scale applications and the profiling tools. We also explain the concept of Flame Graphs as part of the introduction to several profiling techniques. We don't describe visualization techniques in much detail, however Flame Graphs are great concept which may be used for efficient performance analysis, both single and distributed applications.
 \subsection{Tools for Large-Scale Debugging}
 Standard techniques and tools can be used for debugging distributed applications, however when using these tools we lack the information about dependencies between different nodes in the cluster. There are many tools under the category of large-scale debugging but we just point out basic ideas behind two different approaches - discovering scalling bugs and behaviour based debugging. 
 
 In distributed systems the scalability is very important. It is very important to know how our platform scales when it comes to significantly big data and what is the scalability trend we can expect. It can happen that on large data the platform can run significantly slower than expected when tested on smaller data. We call this issue as a scaling bug. Tools which can be used to help with these kind od bugs are for example Krishna and WuKong. Both of the mention tools are based on the same idea. They build a scaling trend based on data batches of smaller size. The observed scalling trend acts as a boundary. We observe the scalling bug when the scalling trend is violated. In the first tool, Wrishna, we can't tell which port of the program violated the scalling trend, however it is possible in the second tool, WuKong. In comparison to Krishna, Wukong doesn't build one scalling trend of the whole applications, but creates more smaller models, each per some control flow structure in desired programming language where the all these smaller models represent together the whole scalling trend. When we hit into scalling bug, WuKong can give us hints where the trend can be violated.
 
-The different category of tools used for debugging of large scale applications are based on behaviour analysis. The basic idea behind these tools is that the classes of equivalence are created from different program processes and different runs. Using this approach we lower down the number of data we need to inspect and the tools can help us to discover anomalies between different observed classes. For example, STAT - Stack Trace Analysis Tool, is a lightweight and scalable debugging tool used for identifying errors on massive high performance computing platforms. It gathers stack traces from all parallel executions, merges together stacktraces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. As the other example falling under the same category is AutomaDed. This tool creates several models from an execution and can compare them using clustering algorithm with (dis)-similarity metric to to discover anomalous behaviours. It also can point to specific code region which may causing the anomaly.
-
-\subsubsection{Graphite and Graphana}
-\subsubsection{Flame Charts}
-
+The different category of tools used for debugging of large scale applications are based on behaviour analysis. The basic idea behind these tools is that the classes of equivalence are created from different program processes and different runs. Using this approach we lower down the number of data we need to inspect and the tools can help us to discover anomalies between different observed classes. For example, STAT - Stack Trace Analysis Tool, is a lightweight and scalable debugging tool used for identifying errors on massive high performance computing platforms. It gathers stack traces from all parallel executions, merges together stacktraces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. As the other example falling under the same category is AutomaDed. This tool creates several models from an execution and can compare them using clustering algorithm with (dis)-similarity metric to to discover anomalous behaviours. It also can point to specific code region which may be causing the anomaly.
 
 \subsection{Profiling Tools}
-\subsubsection{System Profilers}
-\subsubsection{JVM Profilers}
+Profiling is a form of dynamic code analysis used for analyzing for example how long each part of the system takes in the whole computation, where the computation spends the most time or the memory requirements of the whole program. Generally, we can group the profiling tools into two categories: sampling profilers and instrumentation profilers.
+
+\begin{itemize}
+	\item sampling profilers
+
+Sampling profilers take statistical samples of an application at well-defined points such as method invocations. It usually have less overhead comparing to instrumentation profilers. The points were the application should take samples can be inserted at the compilation time by the compiler. Using these profilers we can collect how long the method run, who call it or for example the complete stacktrace. We however can't record any application specific information.
+\item instrumentation profilers
+This can be solved by instrumentation profilers. These profilers build on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers but usually give us the ability to specify extra points in the code we are interested in and also to record application specific data.
+\end{itemize}
+
+
+However, we can look on profilers from different point of view and categorize them based on the level on which they operate and are able to record the information - system profilers and application specific profilers. 
+At application specific profilers, we are the most interested in profilers targeted for JVM platform.
+\begin{itemize}
+	\item system profilers
+	System profilers operate on OS-level. They are great at showing system code paths, but are not able to capture method calls done for example in Java application.
+	\item JVM profilers
+	These profilers show Java methods, but usually not system code paths.
+\end{itemize}
+For monitoring purposes the best would be to have information from both the system profiler and JVM profiler, however combining outputs of these 2 profilers is not straightforward.
+
+mention java-mixed mode, AsyncCallGetTrace
+\subsubsection{Flame Charts}
+Flame Chart is a concept by a developer Brendan Gregg. They are mainly used to analyze where the application spends the most of its time
+
 Write about AsyncGetCallTrace
 
 
