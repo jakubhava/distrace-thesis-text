@@ -1,0 +1,196 @@
+\chapter{Background }
+This chapter covers technologies which are relevant to the thesis. It starts with the overview of similar monitoring tools for cluster based applications and follows by short overview of tools for debugging of large scale applications. Later different approaches to applications profiling are described. 
+In the next several sections the technologies which have been consider or are used in the thesis in the current moment are introduced. It covers libraries for bytecode manipulation, communication, logging and Java relevant libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distributed package for the whole platform.
+
+\section{Monitoring Tools}
+The most significant platforms to this thesis are Google Dapper and Zipkin, where Zipkin is based on the previous. Both serves the same core purpose which is to monitor large-scale Java based distributed applications. This thesis is based mainly on Google Dapper but also uses helpful Zipkin modules such as the user interface. Since Zipkin is developed according to Google Dapper design, these two platforms shares very similar concepts. The most important concept is a Span and it is explained in more details in the  following section. For now, we can think of a span as time slots encapsulating several calls from one node to another with well-defined start and end of the communication. The following two sections describes the basics the both mentioned platform. Both Zipkin and Dapper shares very similar concepts wo we just point out the most import parts relevant to the thesis.
+\subsection{Google Dapper}
+Google Dapper is proprietary software which was mainly developed as a tool for monitoring large distributed applications since debugging and reasoning about applications running on multiple host at the same time, sometimes written in different programming languages is inherently complex. Google Dapper has 3 main pillars on which is built:
+\begin{itemize}
+	\item Low overhead
+	It was assumed that such a tool should share the same life-cycle as the monitored application itself thus low overhead was on of the main design goals as well. Google dapper 
+	\item Application level transparency
+	The developers and users of the application should not know about the monitoring tool and are not supposed to change the way how they interact with the system. It can be assumed from the paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced in the Google shares the same libraries and control flow.
+	\item Scalability
+	Such a system should perform well on large scale data.
+\end{itemize}	
+Google Dapper collects so called distributed traces. The origin of the distributed trace is the communication/task initiator and the trace spans across the nodes in the cluster which took part as the computation/communication.
+	
+There were two proposals for obtaining this information - using the black-box and annotation-based monitoring approaches. The first one assumes no additional knowledge about the application whereas the second can use of additional information via annotations. Dapper is mainly using black-box monitoring schema since most of the control flow and RPC subsystems are shared among Google.
+	
+In Dapper, distributed traces are captured in so called trace trees, where tree nodes are basic units of work referred to as spans. Span is related to other spans via dependency edges. These edges represents relationship between parent span and children of this span. Usually the edges represents some kind of RPC calls or similar kind of communication.
+
+Each span its own id so it can be uniquely identified. In order to reconstruct the whole trace tree, we need to be able to identify the starting Span. Spans without parent id are called root spans serves exactly that purpose. Span can also contain information from multiple hosts, usually from spans from direct neighborhood. Spans structure in Dapper platform is described in the figure \ref{fig:dapper_span}.
+\begin{figure}
+	\centering
+		\includegraphics[scale=0.7]{dapper_span.png}
+	\caption{Example of Span in Google Dapper. Picture taken from the Google Dapper paper}
+	\label{fig:dapper_span}
+\end{figure}
+
+Dapper is able to achieve application-level transparency and follow distributed control paths thanks to instrumentation of a few common, mostly shared libraries among Google developers. 
+\begin{itemize}
+	\item Dapper attaches so called trace-context as thread-local variable to the thread when the thread handles any kind of control path. Trace context is small data structure containing mainly just reference to current and parent span via their ids.
+	
+	\item Dapper instruments the callback mechanism so when computation is deferred, the callbacks still carry around trace context of the creator and therefore also parent span ans current span id
+	
+	\item Most of the communication in Google is using single RPC framework with language bindings to different languages. This library was instrumented as well to achieve the desired transparency.
+\end{itemize}
+
+Even though Dapper is mainly following black-box monitoring scheme mentioned bellow, it still have small support for adding custom annotation to the code. This gives the developer of an application possibility to attach additional information to spans which are very application-specific.
+
+The low-level overhead was also achieved by sampling the data. As is mentioned in the paper, the volume of data at Google is significant so only samples are taken at a time.
+
+\subsection{Zipkin}
+Zipkin is open-source distributed tracing system. It based on Google Dapper technical paper and manages both the collection and lookup of captured data.
+
+Zipkin uses instrumentation and annotations for capturing the data. Some
+information are captured automatically such as time when Span was created whereas some are optional and some even application-specific.
+
+Zipkin architecture can bee seen on figure \ref{fig:zipkin_architecture}.
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.6]{zipkin_architecture.png}
+	\caption{Zipkin architecture - http://zipkin.io/pages/architecture.html}
+	\label{fig:zipkin_architecture}
+\end{figure}
+The instrumented application is responsible for creating valid traces. For that reason Zipkin has set of pre-instrumented libraries ready to be used which works well with whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead.
+
+Once the span is created, it is sent to Zipkin, in more details, to Zipkin collector. In General, Zipkin consists of 4 components:
+\begin{itemize}
+	\item Zipkin Collector
+	It is usually a daemon thread or process which stores, validates and indexes the data for future lockups.
+	\item Storage
+	Data in zipkin can be stored in a mulltiple ways, so this is a pluggable component. Data can be stored in for example in Cassandra, MySQL or can be send to Zipkin UI right away without storing it anywhere. The last option is good only for small amount of data.
+	\item Zipkin Query Service
+	This component act as a query daemon allowing us to query various informaion about span using simple JSON API.
+	\item Web UI
+	Basic, but very useful user interface. The user can see whole trace trees and all spans with dependencies between them.
+\end{itemize}
+ In the thesis the Zipkin UI is used as front end for developed the monitoring tool and it's format is described in more detail in  \hyperref[sec:zipkin_ui]{Zipkin UI} section of \hyperref[chap:design]{Design} chapter.
+ 
+ The reason why Zipkin UI was selected as the primary user interface for this work is mainly it's simplicity and ease of use. Also it fulfills the visualization requirements of the thesis as well, since we need to see dependencies between spans and also whole trace tree as well. However the monitoring platform is not tightly-coupled with this user interface. We will see later how to create custom span savers which can store data in any format suitable for different visualization tools.
+ 
+
+\section{Tools for Large-Scale Debugging}
+Standard techniques and tools can be used for debugging distributed applications, however when using these tools we lack the information about dependencies between different nodes in the cluster. There are many tools under the category of large-scale debugging but we just point out basic ideas behind two different approaches - discovering scalling bugs and behaviour based debugging. 
+
+In distributed systems the scalability is very important. It is very important to know how our platform scales when it comes to significantly big data and what is the scalability trend we can expect. It can happen that on large data the platform can run significantly slower than expected when tested on smaller data. We call this issue as a scaling bug. Tools which can be used to help with these kind od bugs are for example Krishna and WuKong. Both of the mention tools are based on the same idea. They build a scaling trend based on data batches of smaller size. The observed scalling trend acts as a boundary. We observe the scalling bug when the scalling trend is violated. In the first tool, Wrishna, we can't tell which port of the program violated the scalling trend, however it is possible in the second tool, WuKong. In comparison to Krishna, Wukong doesn't build one scalling trend of the whole applications, but creates more smaller models, each per some control flow structure in desired programming language where the all these smaller models represent together the whole scalling trend. When we hit into scalling bug, WuKong can give us hints where the trend can be violated.
+
+The different category of tools used for debugging of large scale applications are based on behaviour analysis. The basic idea behind these tools is that the classes of equivalence are created from different program processes and different runs. Using this approach we lower down the number of data we need to inspect and the tools can help us to discover anomalies between different observed classes. For example, STAT - Stack Trace Analysis Tool, is a lightweight and scalable debugging tool used for identifying errors on massive high performance computing platforms. It gathers stack traces from all parallel executions, merges together stacktraces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. As the other example falling under the same category is AutomaDed. This tool creates several models from an execution and can compare them using clustering algorithm with (dis)-similarity metric to to discover anomalous behaviours. It also can point to specific code region which may be causing the anomaly.
+
+\section{Profiling Tools}
+Profiling is a form of dynamic code analysis used for analyzing for example how long each part of the system takes in the whole computation, where the computation spends the most time or the memory requirements of the whole program. Generally, we can group the profiling tools into two categories: sampling profilers and instrumentation profilers.
+
+\begin{itemize}
+	\item sampling profilers
+
+Sampling profilers take statistical samples of an application at well-defined points such as method invocations. It usually have less overhead comparing to instrumentation profilers. The points were the application should take samples can be inserted at the compilation time by the compiler. Using these profilers we can collect how long the method run, who call it or for example the complete stacktrace. We however can't record any application specific information.
+\item instrumentation profilers
+This can be solved by instrumentation profilers. These profilers build on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers but usually give us the ability to specify extra points in the code we are interested in and also to record application specific data.
+\end{itemize}
+
+
+However, we can look on profilers from different point of view and categorize them based on the level on which they operate and are able to record the information - system profilers and application specific profilers. 
+At application specific profilers, we are the most interested in profilers targeted for JVM platform.
+\begin{itemize}
+	\item system profilers
+	System profilers operate on OS-level. They are great at showing system code paths, but are not able to capture method calls done for example in Java application.
+	\item JVM profilers
+	These profilers show Java methods, but usually not system code paths.
+\end{itemize}
+The ideal solution for monitoring purposes would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers which are able to collect traces from both the profiler types are usually called mixed-mode profilers. JDK8u60 comes with the solution in a way of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}.  Operating system is usually using this field to point to most recent call of the stack frame and system profilers make uses of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. This leaves this register available for various kind of JVM optimalizations.
+
+This option ensures that JVM abides the frame pointer register and will not use it as general purpose register and therefore we can get both system and JVM stack frames in a one call hierarchy. Using the JVM mixed-mode profilers we are able to collect information about:
+\begin{itemize}
+	\item page faults
+	They allow us to see what leads to from of JVM resident memory.
+	\item context switches
+	Context switches are interesting to see code path leads to leaving the CPU.
+	\item disk i/o requests
+	Show code paths leading to IO operations such as blocking disk seek operation.
+	\item TCP events
+	Show code paths leading from high-level Java code to low-level system methods such as connect or accept, so we can reason about performance and good design of network communication in much more better detail.
+	\item CPU cache misses
+	Show code paths leading to cache misses. Using this information we can optimize the Java code to make better use of the existing cache hierarchy.
+\end{itemize}
+
+All the information bellow can be described on a special chart called Flame charts.
+\subsubsection{Flame Charts}
+Flame Chart is a concept by a developer Brendan Gregg. Flame graphs are aa visualization for samples stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling of instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. 
+
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.35]{flame_chart.png}
+	\caption{Flame Graph example}
+	\label{fig:flame_chart}
+\end{figure}
+The description:
+\begin{itemize}
+	\item Each box represents a function call in the stack
+	\item The \textbf{y-axis} shows stack frame depth. The top function is the function which was at the moment of capturing this flame chart on the CPU. All functions underneath of it are its ancestors.
+	\item The \textbf{x-axis} shows the population of traces. It doesn't represent passing of time. The function calls are usually sorted alphabetically.
+	\item The width of each box represents the time the function was on CPU.
+	\item The colors are not significant, they are just used to visually separate different function calls
+\end{itemize}
+
+Flame charts can be created in a few simple steps, but it depends on the type of profiler the user wants to use. 
+\begin{enumerate}
+	\item Capture stack traces
+	For this step we can use profiler of our choice.
+	\item Fold stacks
+	We need to prepare the stacks so Flame graphs can be created out of them. For this, there are several scripts prepared for different profiler types.
+	\item Generate the flame graph itself, again using the prepared script provided on the link above.
+\end{enumerate}
+
+Purpose of this really short section was just to introduce the idea of Flame charts since it's one of the future plans the thesis could be extended to support. For more information about the flame charts please visit the Brendan Gregg's blog.
+\section{Bytecode Manipulation Libraries}
+This thesis highly depends on the instrumentation for which the byte-code manipulation is a core feature. Since the work is written in Java, we are mainly interested in instrumentation and byte-code manipulation libraries based on Java. This section covers . The purpose of this section is to introduce 4 standard bytecode manipulation libraries - Javassist, ByteBuddy, CGlib and ASM - and give their comparison. Since it's a core feature of the whole platform and affect the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. ByteBuddy was selected to be used in the thesis and the reasons why are mentioned bellow as well.
+\subsection{Javassist}
+Javassist is well-known bytecode manipulation library. It allows to Java programs ot define new classes at runtime and also to modify a class file when the JVM loads it.
+\subsection{ByteBuddy}
+\subsubsection{Main Concept}
+\subsubsection{Transformers}
+\subsubsection{Interceptors}
+\subsubsection{Class File Locator}
+\subsubsection{Advice API}
+\subsubsection{Selected ByteBuddy Internals}
+\subsubsection{Auxiliary Classes}
+\subsubsection{Initializer Classes}
+\subsection{Important Annotations}
+\subsection{CGlib}
+\subsection{ASM}
+.. just give brief overview what were the instrumentation libreries choices. The selected one will be describied in the next section
+
+\section{Communication Middleware}
+give comparison between the possible communication middle-wares
+\subsection{Raw Sockets}
+\subsection{ZeroMQ}
+\subsection{NanoMsg}
+\subsubsection{API Overview}
+\subsubsection{Available Communication Modes}
+\subsubsection{Language Mappings}
+\subsubsection{C++11 Mapping}
+\subsubsection{Java Mapping}
+
+\section{Java Libraries}
+\subsection{Class Initialization Process}
+\subsection{JVMTI}
+\subsubsection{JVMTI Overview}
+\subsubsection{Basic Hooks}
+..maybe more subsubsections later
+\subsection{JNI}
+\subsubsection{JNI Overview}
+\subsubsection{Java Types Mapping}
+\subsubsection{Example Java Calls  C++}
+..maybe more subsubsections later
+\subsection{Relevant Class Loaders}
+\subsection{Service Provider Interface}
+
+\section{Logging libraries}
+spd log on c++ side and 
+logging library used
+\section{Docker}
+\subsection{Docker Compose}
+\subsection{Example Docker Usage}
+used for easy of use
