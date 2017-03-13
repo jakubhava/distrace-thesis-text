@@ -98,15 +98,51 @@ At application specific profilers, we are the most interested in profilers targe
 	\item JVM profilers
 	These profilers show Java methods, but usually not system code paths.
 \end{itemize}
-For monitoring purposes the best would be to have information from both the system profiler and JVM profiler, however combining outputs of these 2 profilers is not straightforward.
+The ideal solution for monitoring purposes would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers which are able to collect traces from both the profiler types are usually called mixed-mode profilers. JDK8u60 comes with the solution in a way of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}.  Operating system is usually using this field to point to most recent call of the stack frame and system profilers make uses of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. This leaves this register available for various kind of JVM optimalizations.
 
-mention java-mixed mode, AsyncCallGetTrace
+This option ensures that JVM abides the frame pointer register and will not use it as general purpose register and therefore we can get both system and JVM stack frames in a one call hierarchy. Using the JVM mixed-mode profilers we are able to collect information about:
+\begin{itemize}
+	\item page faults
+	They allow us to see what leads to from of JVM resident memory.
+	\item context switches
+	Context switches are interesting to see code path leads to leaving the CPU.
+	\item disk i/o requests
+	Show code paths leading to IO operations such as blocking disk seek operation.
+	\item TCP events
+	Show code paths leading from high-level Java code to low-level system methods such as connect or accept, so we can reason about performance and good design of network communication in much more better detail.
+	\item CPU cache misses
+	Show code paths leading to cache misses. Using this information we can optimize the Java code to make better use of the existing cache hierarchy.
+\end{itemize}
+
+All the information bellow can be described on a special chart called Flame charts.
 \subsubsection{Flame Charts}
-Flame Chart is a concept by a developer Brendan Gregg. They are mainly used to analyze where the application spends the most of its time
+Flame Chart is a concept by a developer Brendan Gregg. Flame graphs are aa visualization for samples stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling of instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. 
 
-Write about AsyncGetCallTrace
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.35]{flame_chart.png}
+	\caption{Flame Graph example}
+	\label{fig:flame_chart}
+\end{figure}
+The description:
+\begin{itemize}
+	\item Each box represents a function call in the stack
+	\item The \textbf{y-axis} shows stack frame depth. The top function is the function which was at the moment of capturing this flame chart on the CPU. All functions underneath of it are its ancestors.
+	\item The \textbf{x-axis} shows the population of traces. It doesn't represent passing of time. The function calls are usually sorted alphabetically.
+	\item The width of each box represents the time the function was on CPU.
+	\item The colors are not significant, they are just used to visually separate different function calls
+\end{itemize}
 
+Flame charts can be created in a few simple steps, but it depends on the type of profiler the user wants to use. 
+\begin{enumerate}
+	\item Capture stack traces
+	For this step we can use profiler of our choice.
+	\item Fold stacks
+	We need to prepare the stacks so Flame graphs can be created out of them. For this, there are several scripts prepared for different profiler types.
+	\item Generate the flame graph itself, again using the prepared script provided on the link above.
+\end{enumerate}
 
+Purpose of this really short section was just to introduce the idea of Flame charts since it's one of the future plans the thesis could be extended to support. For more information about the flame charts please visit the Brendan Gregg's blog.
 
 \section{Instrumentation Libraries}
 \subsection{Javassist}
