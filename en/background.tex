@@ -212,10 +212,28 @@ Advices are another approach how code can be instrumented in Byte Buddy. Compare
 However, instrumentation using Advice API is only allowed before or after the matched method which is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations.
 
 \section{Communication Middleware}
-give comparison between the possible communication middle-wares
+This thesis consist of several parts which need be able to communicate. The communication is also complicated by the fact that the parts are written in different programming languages - Java and C++. In order to achieve communication in such an environment, following libraries has been inspected.
 \subsection{Raw Sockets}
+We are not referring to a library but to using raw sockets on their low-level API. Using raw sockets has several pros and cos. It give us a full flexibility and the highest possible performance since there isn't any additional layer between our application data and the socket itself. However, integrating different platforms and different languages can be time-consuming. Several frameworks have already been created to achieve this so the user does not need to know about the language or underlying platform.
 \subsection{ZeroMQ}
+ZeroMq is a communication library build on top of raw sockets. The core of the library is written in C++ however binding into different languages exist. The library is able transport messages inside a single process, between different processes on the same node, using TCP or also using multicast.
+
+The library also supports to create typologies using one of many supported communication patterns like publisher-subscriber or request-reply.
+\begin{itemize}
+	\item Hiding the differences of underlying operating systems.
+	\item Message framing - delivering whole messages instead of stream of bytes
+	\item No need to worry about queuing messages. The internals take care of ensuring the messages are sent and received in correct order. The user can send the messages without knowing whether there are other messages in the queue or not.
+	\item Language mappings to different languages.
+	\item Ability to create a topologyy. For example, one socket can be connected to multiple endpoints.
+	\item Automatic TCP re-connection
+	\item Zero-copy
+\end{itemize}
+\subsubsection{Zero-copy in ZeroMQ}
+The library also tries to apply concept called zero-copy if possible. When high-performance is expected from a system or network, copying of data is usually considered harmful and should be minimized as possible. The technique of avoiding copies of data is known as zero-copy.
+
+Example of data copying is transferring data from memory to network interface or from user application to underlying kernel.  We can see that zero-copy can't be implemented at all layers because for example without copying the data from the kernel to network interface, we could not actually exchange any data. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a big performance plus.
 \subsection{NanoMsg}
+
 \subsubsection{API Overview}
 \subsubsection{Available Communication Modes}
 \subsubsection{Language Mappings}
