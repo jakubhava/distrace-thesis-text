@@ -198,18 +198,18 @@ class Foo {
 }
 \end{lstlisting}
 		
-We can therefore see that in case of interceptors, Byte Buddy does not inline the byte code to the Foo class but requires the interceptor class to be available on the machine where instrumentation takes place. Also the interceptor field needs to be initialized, which is in this case done in the static initializer. The initialization of interceptors is done using special helper classes called LoadedTypeInitializers.
+We can therefore see that in case of interceptors, Byte Buddy does not inline the byte code to the \texttt{Foo} class but requires the interceptor class to be available on the machine where instrumentation takes place. Also the interceptor field needs to be initialized, which is in this case done in the static initializer. The initialization of interceptors is done using special helper class called \texttt{LoadedTypeInitializer}.
 
 There are multiple ways how this behavior can be changed:
 \begin{enumerate}
-\item In Byte Buddy, initialization strategy can be modified according to the specific needs. We can define no-op strategy and read LoadedTypeInitializer right before the class is about to be instrumented.  Later we can perform the initialization our self using observed initializer or we can even serialize this initializer together with the Qux interceptor class, send them to different JVM where the instrumentation should take place and manually initialize the the interceptor field.
-\item Instead of referring to Qux as a instance, we can delegate to Qux as a class and call the interception logic via static methods. In this case the interceptor class still needs to ne known at runtime, but there is no need to perform the interceptor initialization.
+\item In Byte Buddy, initialization strategy can be modified according to the specific needs. We can define no-op strategy and read \texttt{LoadedTypeInitializer} right before the class is about to be instrumented.  Later we can perform the initialization our self using observed initializer or we can even serialize this initializer together with the \texttt{Qux} \texttt{Interceptor} class, send them to different JVM where the instrumentation should take place and manually initialize the the interceptor field.
+\item Instead of referring to \texttt{Qux} as a instance, we can delegate to \texttt{Qux} as a class and call the interception logic via static methods. In this case the interceptor class still needs to ne known at runtime, but there is no need to perform the interceptor initialization.
 \item Instead of using interceptors, advice api which inlines the code to the class itself may be used.
 \end{enumerate}
 \subsubsection{Advice API}
-Advices are another approach how code can be instrumented in Byte Buddy. Compared to Interceptors it is more limited, but on the other hand, in cases where it's possible to use it, the code is in-lined into the class's bytecode and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to using interceptors.
+Advices are another approach how code can be instrumented in Byte Buddy. Compared to \texttt{Interceptor}s it is more limited, but on the other hand, in cases where it's possible to use it, the code is in-lined into the class's bytecode and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to using interceptors.
 
-However, instrumentation using Advice API is only allowed before or after the matched method which is achieved using the Advice.onMethodEnter and Advice.onMethodExit annotations.
+However, instrumentation using Advice API is only allowed before or after the matched method which is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations.
 
 \section{Communication Middleware}
 give comparison between the possible communication middle-wares
