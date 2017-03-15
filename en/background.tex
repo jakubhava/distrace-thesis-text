@@ -75,8 +75,10 @@ Once the span is created, it is sent to Zipkin, in more details, to Zipkin colle
 \section{Tools for Large-Scale Debugging}
 Standard techniques and tools can be used for debugging distributed applications, however when using these tools we lack the information about dependencies between different nodes in the cluster. There are many tools under the category of large-scale debugging but we just point out basic ideas behind two different approaches - discovering scalling bugs and behaviour based debugging. 
 
+\subsection{Discovering Scaling Bugs}
 In distributed systems the scalability is very important. It is very important to know how our platform scales when it comes to significantly big data and what is the scalability trend we can expect. It can happen that on large data the platform can run significantly slower than expected when tested on smaller data. We call this issue as a scaling bug. Tools which can be used to help with these kind od bugs are for example Krishna and WuKong. Both of the mention tools are based on the same idea. They build a scaling trend based on data batches of smaller size. The observed scalling trend acts as a boundary. We observe the scalling bug when the scalling trend is violated. In the first tool, Wrishna, we can't tell which port of the program violated the scalling trend, however it is possible in the second tool, WuKong. In comparison to Krishna, Wukong doesn't build one scalling trend of the whole applications, but creates more smaller models, each per some control flow structure in desired programming language where the all these smaller models represent together the whole scalling trend. When we hit into scalling bug, WuKong can give us hints where the trend can be violated.
 
+\subsection{Behavior-based Analysis}
 The different category of tools used for debugging of large scale applications are based on behaviour analysis. The basic idea behind these tools is that the classes of equivalence are created from different program processes and different runs. Using this approach we lower down the number of data we need to inspect and the tools can help us to discover anomalies between different observed classes. For example, STAT - Stack Trace Analysis Tool, is a lightweight and scalable debugging tool used for identifying errors on massive high performance computing platforms. It gathers stack traces from all parallel executions, merges together stacktraces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. As the other example falling under the same category is AutomaDed. This tool creates several models from an execution and can compare them using clustering algorithm with (dis)-similarity metric to to discover anomalous behaviours. It also can point to specific code region which may be causing the anomaly.
 
 \section{Profiling Tools}
@@ -158,17 +160,56 @@ CGLib as another byte-code manupulation library built on top of ASM. The main co
 
 \subsection{Byte Buddy}
 ByteBuddy is fairly new, light-weight and high-level bytecode manupulation library. The library depends only on visitor API of the ASM library which does not further have any other dependencies. It does not require from the user to understand format of java bytecode but despite this, it gives the users full flexibility to redefine the byte code according their specific needs. Also, classes created or instrumented by Byte Buddy does not depend on the Byte Buddy framework. Despite it's high-level approach, it still offers great performance and is used at frameworks such as Mockito or Hibernate. Byte Buddy can be used for both code generation and transformation of existing code.
-\subsubsection{Main Concept}
-\subsubsection{Transformers}
+
+\subsubsection{Code Generation}
+Code generation is done by specifying from which class we want to create a subclass, in the most generic way we can create subclass from Object class. The newly created class can introduce new methods or intercept methods from it's super class. In order to intercept existing methods and change their behavior and return value, the method to be intercepted has to be identified using so-called ElementMatchers. These matchers allow us to identify methods using for example their names, number of arguments, return methods or associated annotations. The whole list of matchers and also examples how code can be generated is greatly described on the project Github page.
+
+As mentioned earlier, the power behind Byte Buddy is also that it can be used to redefine classes at runtime. This is achieved several concepts, mainly Transformers, Interceptors and Advice API.
+\subsubsection{Code Transformation}
+In order to tell byte buddy when it needs to intercept a method or field, we need to identify the place in the code which triggers the interception. First,  the class containing method to be instrumented need to be located. It can be done by simply specifying the class name or using more complex structures. For example we can only consider all classes A extending class B whilst implementing interface C at the same type. 
+
+The next step is to define the transformer class itself. Transformers are used to identify methods in the class which should be instrumented and they also specify what interceptor or advice should handle the instrumentation for the particular matched method. Such methods can be again identified using the ElementMatchers mentioned in the section above. In more detail, transformer interface has a method transfrom which has DynamicType.Builder as it's argument. This builder is used to create a single transformer wrapping all the previous ones for all classes in the code so the result of this builder can be thought of as a dispatcher of the instrumentation. Methods to be instrumented are specified on the builder instance using the ElementMatchers  as well as what interceptor or advice API will be used to handle the transformation.
+
+As mentioned above there are 2 ways how to instrument a class in ByteBuddy.
 \subsubsection{Interceptors}
-\subsubsection{Class File Locator}
+Interceptor is a class defining the new or changed desired behavior for the method to be instrumented. 
+We demonstrate how Byte Buddy uses interceptors on a small example. Let's assume we have original class Foo:
+\begin{lstlisting}[language=Java]
+class Foo {
+	String bar() {
+		return "bar"; 
+	}
+}
+\end{lstlisting}
+	
+Le'ts also assume that our Interceptor is of type Qux. The interception of the class Foo using our interceptor looks like this in schematic code:
+
+\begin{lstlisting}[language=Java]
+class Foo {
+	// Requires your interceptor class to be known
+	static Qux $interceptor;
+	String bar() {
+		return $interceptor.intercept(); 
+	}
+	static {
+		// Requires knowing the framework
+		$interceptor = ByteBuddyFramework.defineField(Foo.class);
+	}
+}
+\end{lstlisting}
+		
+We can therefore see that in case of interceptors, Byte Buddy does not inline the byte code to the Foo class but requires the interceptor class to be available on the machine where instrumentation takes place. Also the interceptor field needs to be initialized, which is in this case done in the static initializer. The initialization of interceptors is done using special helper classes called LoadedTypeInitializers.
+
+There are multiple ways how this behavior can be changed:
+\begin{enumerate}
+\item In Byte Buddy, initialization strategy can be modified according to the specific needs. We can define no-op strategy and read LoadedTypeInitializer right before the class is about to be instrumented.  Later we can perform the initialization our self using observed initializer or we can even serialize this initializer together with the Qux interceptor class, send them to different JVM where the instrumentation should take place and manually initialize the the interceptor field.
+\item Instead of referring to Qux as a instance, we can delegate to Qux as a class and call the interception logic via static methods. In this case the interceptor class still needs to ne known at runtime, but there is no need to perform the interceptor initialization.
+\item Instead of using interceptors, advice api which inlines the code to the class itself may be used.
+\end{enumerate}
 \subsubsection{Advice API}
-\subsubsection{Selected ByteBuddy Internals}
-\subsubsection{Auxiliary Classes}
-\subsubsection{Initializer Classes}
-\subsection{Important Annotations}
+Advices are another approach how code can be instrumented in Byte Buddy. Compared to Interceptors it is more limited, but on the other hand, in cases where it's possible to use it, the code is in-lined into the class's bytecode and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to using interceptors.
 
-
+However, instrumentation using Advice API is only allowed before or after the matched method which is achieved using the Advice.onMethodEnter and Advice.onMethodExit annotations.
 
 \section{Communication Middleware}
 give comparison between the possible communication middle-wares
