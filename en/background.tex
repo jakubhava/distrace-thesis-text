@@ -233,13 +233,28 @@ The library also tries to apply concept called zero-copy if possible. When high-
 
 Example of data copying is transferring data from memory to network interface or from user application to underlying kernel.  We can see that zero-copy can't be implemented at all layers because for example without copying the data from the kernel to network interface, we could not actually exchange any data. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a big performance plus.
 \subsection{NanoMsg}
+NanoMsg [http://nanomsg.org/documentation-zeromq.html] is a socket library shadowing the differences in the underlying operation systems. It offers several communication patterns, is implemented on C and does not have any other dependencies. Generally, it offers very similar features to ZeroMQ since it's heavily based on it.
 
-\subsubsection{API Overview}
-\subsubsection{Available Communication Modes}
-\subsubsection{Language Mappings}
+Unlike ZeroMQ, nanomsg matches the full POSIX compliance. The author of the library states, that since it's implemented in C, the number of memory allocations is drastically reduced compared to c++ when using C++ STL containers for example. Also compared to ZeroMQ, objects are not tightly bound to particular threads this it gives the user flexibility to create their custom threading models without big limitations. NanoMsg should also implement zero-copy technique at additional layers which again leads to performance benefits.
+
+As in ZeroMQ, NanoMsq supports the following transport mechanisms:
+\begin{itemize}
+	\item \textbf{INPROC}
+	Used for transporting messages withing a single process, for example between different threads. In-process address is arbitrary case-sensitive string starting with \texttt{inproc://}
+	\item \textbf{IPC} - inter processes communication
+	It enables several processes to communicate on the same node
+	The implementation uses native IPC mechanism available on the target platform. On Unix-like systems, IPC addresses are just references to files where both absolute and relative path can be used. The application has to have rights to read and write from the IPC file in order to allow the communication.
+	On Windows, the named pipes are used. The address can be arbitrary-case sensitive string containing any character but backslash. On both mentioned platforms, the address has to start with \texttt{ipc://} prefix.
+	\item \textbf{TCP}
+	TCP is used to transport messages in a reliable manner to a single recipient to in a reachable network. When connecting to a node, the address in format \texttt{tcp://interface:port} needs to used and when binding a node, address in format texttt{tcp://*:port} should be used.
+\end{itemize}
+
+NanoMsg can be used in via it's core C library, but also several language mappings for different languages exist.
 \subsubsection{C++11 Mapping}
-\subsubsection{Java Mapping}
+Nanomsgxx [https://github.com/achille-roussel/nanomsgxx] is a C++11 mapping for nanomsg library. It is a small layer build on top of core library making the API more C++11 like friendly. Especially, there is no need to tell when to release resources, since it's handled automatically in desctuctors. The \texttt{nnxx::message} abstraction over NanoMsg \texttt{nn::message} automatically manages buffers for zero-copy and also errors are reported using the exceptions which are sub-classes from \texttt{std::system\_error}
 
+\subsubsection{Java Mapping}
+Several Java bindings of nanomsg library exists, but just jnanomsg library is described here. This language binding is build on top of JNA - Java Native Access library. It offers all the functionalities offered by the core library but also introduces non-blocking sockets exposed via a callback interface.
 \section{Java Libraries}
 \subsection{Class Initialization Process}
 \subsection{JVMTI}
