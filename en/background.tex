@@ -254,17 +254,57 @@ NanoMsg can be used in via it's core C library, but also several language mappin
 Nanomsgxx [https://github.com/achille-roussel/nanomsgxx] is a C++11 mapping for nanomsg library. It is a small layer build on top of core library making the API more C++11 like friendly. Especially, there is no need to tell when to release resources, since it's handled automatically in desctuctors. The \texttt{nnxx::message} abstraction over NanoMsg \texttt{nn::message} automatically manages buffers for zero-copy and also errors are reported using the exceptions which are sub-classes from \texttt{std::system\_error}
 
 \subsubsection{Java Mapping}
-Several Java bindings of nanomsg library exists, but just jnanomsg library is described here. This language binding is build on top of JNA - Java Native Access library. It offers all the functionalities offered by the core library but also introduces non-blocking sockets exposed via a callback interface.
+Several Java bindings of nanomsg library exists, but just jnanomsg library [http://niwinz.github.io/jnanomsg/latest/] is described here. This language binding is build on top of JNA - Java Native Access library. It offers all the functionalities offered by the core library but also introduces non-blocking sockets exposed via a callback interface.
 \section{Java Libraries}
-\subsection{Class Initialization Process}
+This section describes some fundamental Java related libraries on technologies on which this thesis heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described followed by basic introduction to Java Native Interface. Important Java concepts and classes relevant to the thesis are described in the following few sections.
 \subsection{JVMTI}
-\subsubsection{JVMTI Overview}
-\subsubsection{Basic Hooks}
-..maybe more subsubsections later
+The JVM Tool Interface https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html is a interface used by development and monitoring tools for communication with JVM. It allows its user to monitor and control the execution running in Java virtual machine. An application communicating with the JVM using JVMTI is usually called agent. Agents are notified of the events happening inside JVM and can react upon them.
+
+Agents run in the same process as the application itself this reducing the communication. Since JVMTI as interface written in C, agents can be written in C or C++. The agent has to be attached to the application via 
+
+
+JVMTI supports 2 modes how agent can can be started, either in OnLoad phase or in Live phase. In OnLoad phase, client is started together with the application and agent location can be specified using 2 arguments:
+\begin{itemize}
+	\item \texttt{-agentlib:<agent-lib-name>=<options>} \newline
+	In this case, the library name to load is specified and it is loaded using platform specific manner .
+	\item \texttt{-agentpath:<path-to-agent>=<options>} \newline
+	In this case, the path to a location of the library is specified and the library is loaded from there.
+\end{itemize}
+
+In the Live phase, the agent is dynamically attached to running application. This approach can be though as more flexible since we don't have to specify agent library to monitored application in advance, but it brings several limitation as well.
+
+We don't aim to describe full JVMTI functionality here, please consider this just as brief introduction to the interface and inspect the documentation for more information. In the following sections we aim to very briefly describe the important parts of JVMTI relevant to the thesis.
+
+\subsubsection{JVMTI Agent Initialization}
+When client is started, the method \newline \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)} is called. In this method we can do custom initialization for our agent.
+
+Usually the initialization consist of several phases:
+\begin{enumerate}
+	\item Optionally, parse arguments passed to JVMTI agent.
+	\item Initialize JVMTI environment in order to be able to communicate with the observed application.
+	\item Register capabilities we want the JVMTI to support. We can specify what are the operations our JVMTI agent can perform. The agent can be for example allowed to re-transform classes, signal threads or generate different class hook events.
+	\item Register events we are interested in observing. JVMTI does not inform the agent about all events by default, the events has to be manually defined.
+	\item Register callbacks for the events we are interested in. In case of agent used for instrumentation we are mostly interested in events \texttt{cbClassLoad}, \texttt{cbClassPrepare}, \texttt{cbClassFileLoadHook}, \texttt{callbackVMInit} \newline
+	and \texttt{callbackVMDeath}.
+	\item Optionally, initializing phase is also good for creating various locks required for synchronization between different JVMTI threads.
+
+\end{enumerate}
+\subsubsection{JVMTI basic callbacks}
+As mentioned above, there are several events send from the observed application. When instrumenting, we are mostly interested in the following events:
+\begin{itemize}
+	\item  \texttt{cbClassLoad} - triggered when class has been loaded by target JVM
+	\item \texttt{cbClassPrepare} - triggered when class has been prepared by target JVM. At the point the class is prepared all static fields, methods and implemented interfaces are available but no code has been executed at this phase.
+	\item \texttt{cbClassFileLoadHook} - triggered when virtual machine obtains class file data but before the class is loaded. Usually, class instrumentation happens based on this hook since the callback allows as to change the bytecode passed for further loading.
+	\item  \texttt{callbackVMInit} - triggered when virtual machine is initialized
+	\item  \texttt{callbackVMDeath} - triggered when virtual machine has been closed either using standard way or forcibly.
+\end{itemize}
+
 \subsection{JNI}
 \subsubsection{JNI Overview}
 \subsubsection{Java Types Mapping}
 \subsubsection{Example Java Calls  C++}
+
+\subsection{Class Initialization Process}
 ..maybe more subsubsections later
 \subsection{Relevant Class Loaders}
 \subsection{Service Provider Interface}
