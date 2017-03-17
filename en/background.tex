@@ -353,7 +353,16 @@ First we need to get a reference to a method, which we use later for the invocat
 \subsubsection{Class Initialization Process}
 ..maybe more subsubsections later
 \subsubsection{Relevant Class Loaders}
-In this section we will describe
+There are several class loaders used natively in Java. However we describe only 2 which are references in the thesis later. 
+
+\begin{itemize}
+	\item\textbf{ Bootstrap class loader} \newline
+	This classloader is used to load system classes. When using native agent, even classes loaded by bootstrap classloader can be instrumented and thus behavior of standard Java classes can be changed.
+	
+	\item  \textbf{sun.reflect.DelegatingClassLoader} \newline
+	This class loader is used on the Sun JVM as the effect of a mechanism called inflation. Usually reflective access to method or fields is initially performed via JNI calls. When Sun JVM determines there is a repetition in calling the same method or using the same field via JNI ( reflection), it creates synthetic class ( class created dynamically at runtime), which is used to perform this call without using JNI. This has initial speed overhead, but at the end it speeds up the reflection calls.
+	The classes created for this purpose are loaded and managed by exactly this class loader. 
+\end{itemize}
 \subsubsection{ServiceLoader Class}
 ServiceLoader class is used to locate and load service providers. Service Provider is an implementation of some service which is usually defined as set of methods. The service is often defined as abstract class or interface. 
 
