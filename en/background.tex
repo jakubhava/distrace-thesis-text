@@ -288,6 +288,8 @@ Usually the initialization consist of several phases:
 	\item Optionally, initializing phase is also good for creating various locks required for synchronization between different JVMTI threads.
 
 \end{enumerate}
+
+The user of JVMTI is also required to manually implement queening and locking when processing multiple JVMTI events at the same time since the framework does not handle this. http://www.oracle.com/technetwork/articles/java/jvmpitransition-138768.html
 \subsubsection{JVMTI basic callbacks}
 As mentioned above, there are several events send from the observed application. When instrumenting, we are mostly interested in the following events:
 \begin{itemize}
@@ -349,7 +351,7 @@ On the method bellow we can see how JNI can be used to call a Java method \textt
 First we need to get a reference to a method, which we use later for the invocation itself. From performance reasons, it's good practice to cache the references to methods or objects in Java which we access from JNI often since getting the reference has some initial overhead.
 
 \subsection{Relevant Aspects of the  Java Language}
-
+This section covers selected areas of the Java programming language relevant to the thesis. It briefly describes the class loading process when for dynamically loaded classes. This is followed by explanation of 2 important class loaders relevant to the thesis and lastly, \texttt{ServiceLoader} class is shortly described.
 \subsubsection{Class Loading Process}
 Java allows program to load classes dynamically at runtime. This is achieved by a following process:
 \begin{enumerate}
@@ -385,9 +387,11 @@ ServiceLoader allows us to specify the service type for which we want to load al
 \end{center}
 Service loaders can therefore be used to extend the application without changing the source code. When the user of the application needs to provide another implementation of the service, it can create service provider, register it inside the META-INF folder and the application will use the new service provider as well the rest of the providers defined earlier.
 \section{Logging libraries}
-spd log on c++ side and 
-logging library used
+One of the key aspects of the developed platform is low-overhead. Logging can have negative effect on the performance but sometimes it's necessary to have information from various application runs. That is why the selection of logging library is important for the performance of the thesis as well. 
+
+Spdlog is a C++11 fast, header only logging library this project is based on. It allows both synchronous and asynchronous logging and custom message formation
 \section{Docker}
-\subsection{Docker Compose}
-\subsection{Example Docker Usage}
-used for easy of use
+Docker is an open source project to pack, ship and run any application as a lightweight container [citate]. It is used to package the applications in a prepared environments so the user does not need to worry about configuration and downloading the correct dependencies for the application. 
+
+Docker Compose is an extension build on top of docker allowing us to specify multi-container startup-script. This script can define dependencies between different containers which leads to a simple and automated way on how to start whole bunch of related applications in separated environments using one single call. 
+
