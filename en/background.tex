@@ -262,7 +262,6 @@ The JVM Tool Interface https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmt
 
 Agents run in the same process as the application itself this reducing the communication. Since JVMTI as interface written in C, agents can be written in C or C++. The agent has to be attached to the application via 
 
-
 JVMTI supports 2 modes how agent can can be started, either in OnLoad phase or in Live phase. In OnLoad phase, client is started together with the application and agent location can be specified using 2 arguments:
 \begin{itemize}
 	\item \texttt{-agentlib:<agent-lib-name>=<options>} \newline
@@ -281,7 +280,7 @@ When client is started, the method \newline \texttt{Agent\_OnLoad(JavaVM *jvm, c
 Usually the initialization consist of several phases:
 \begin{enumerate}
 	\item Optionally, parse arguments passed to JVMTI agent.
-	\item Initialize JVMTI environment in order to be able to communicate with the observed application.
+	\item Initialize JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle threads switches automatically, so proper locking and thread management fully depends on the user code.
 	\item Register capabilities we want the JVMTI to support. We can specify what are the operations our JVMTI agent can perform. The agent can be for example allowed to re-transform classes, signal threads or generate different class hook events.
 	\item Register events we are interested in observing. JVMTI does not inform the agent about all events by default, the events has to be manually defined.
 	\item Register callbacks for the events we are interested in. In case of agent used for instrumentation we are mostly interested in events \texttt{cbClassLoad}, \texttt{cbClassPrepare}, \texttt{cbClassFileLoadHook}, \texttt{callbackVMInit} \newline
@@ -300,15 +299,70 @@ As mentioned above, there are several events send from the observed application.
 \end{itemize}
 
 \subsection{JNI}
-\subsubsection{JNI Overview}
+Java Native Interface is a framework which allows Java code running in a Java Virtual Machine to call native applications ( usually written in C or C++ ). It also allows native applications to access and call Java methods.
+
+All operations require instance of class \texttt{JNIEnv}. This environment keeps the connection to the virtual machine. When calling the methods from native application, the method has to be first found. This is achieved by specifying  the types and method signature.
 \subsubsection{Java Types Mapping}
-\subsubsection{Example Java Calls  C++}
+For each Java primitive type there is corresponding native type in JNI. Native types always start with the \textbf{j} as the prefix, for example \texttt{boolean} is Java type whereas \texttt{jboolean} as native type.
+All other JNI reference types are referred to via \texttt{jobject} class. This means that java arrays are accessed via \texttt{jobject} as well.
 
-\subsection{Class Initialization Process}
+The most important is however how we can specify the types in method signatures. There is a mapping giving each type a signature which can be used exactly for this purpose. This table is base on http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html.
+\begin{center}
+\begin{tabular}{ l l }
+	  \hline
+	  Type Signature & Java Type \\ \hline
+	Z & boolean \\
+	B & byte \\
+	C & char \\
+	S & short \\
+	I & int \\
+	J & long \\
+	F & float \\
+	L fully-qualified-class ; & fully-qualified-class \\
+	{[} type & type{[]}\ \\
+	( arg-types ) ret-type & method type \\
+\end{tabular}
+\end{center}
+
+So for example the method: \newline \texttt{xx.yy.Person foo(int n; boolean[] arr, String s);}
+would have the following signature:
+
+\texttt{(I[ZLjava/lang/String;])Lxx/yy/Person;}
+
+Note that in JNI, the elements in fully qualified class name are separated by slashes instead of dots.
+\subsubsection{Example JNI Method Call}
+On the method bellow we can see how JNI can be used to call a Java method \texttt{getClassLoader}.
+
+\begin{lstlisting}[language=c++]
+        jobject getClassLoaderForClass(JNIEnv *jni, jclass clazz){
+        // Get the class object's class descriptor
+        // (jclass inherits from jobject)
+        jclass clsClazz = jni->GetObjectClass(clazz);
+        // Find the getClassLoader() method in the class object
+        jmethodID methodId = jni->GetMethodID(	clsClazz,
+																         "getClassLoader",
+																         "()Ljava/lang/ClassLoader;");
+        return (jobject) jni->CallObjectMethod(clazz, methodId);
+        }
+\end{lstlisting}
+
+First we need to get a reference to a method, which we use later for the invocation itself. From performance reasons, it's good practice to cache the references to methods or objects in Java which we access from JNI often since getting the reference has some initial overhead.
+
+\subsection{Relevant Aspects of the  Java Language}
+
+\subsubsection{Class Initialization Process}
 ..maybe more subsubsections later
-\subsection{Relevant Class Loaders}
-\subsection{Service Provider Interface}
+\subsubsection{Relevant Class Loaders}
+In this section we will describe
+\subsubsection{ServiceLoader Class}
+ServiceLoader class is used to locate and load service providers. Service Provider is an implementation of some service which is usually defined as set of methods. The service is often defined as abstract class or interface. 
 
+ServiceLoader allows us to specify the service type for which we want to load all service providers and then load the desired service providers. The available services have to be defined in the META-INF folder of the application jar distribution. Let's say we have a service A and 2 implementations, Impl1 and Impl2. In that case META-INF folder with contain text file with name A containing lines
+\begin{center}
+ \texttt{Impl1} \newline
+\texttt{Impl1}  \newline
+\end{center}
+Service loaders can therefore be used to extend the application without changing the source code. When the user of the application needs to provide another implementation of the service, it can create service provider, register it inside the META-INF folder and the application will use the new service provider as well the rest of the providers defined earlier.
 \section{Logging libraries}
 spd log on c++ side and 
 logging library used
