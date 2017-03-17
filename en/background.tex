@@ -350,8 +350,20 @@ First we need to get a reference to a method, which we use later for the invocat
 
 \subsection{Relevant Aspects of the  Java Language}
 
-\subsubsection{Class Initialization Process}
-..maybe more subsubsections later
+\subsubsection{Class Loading Process}
+Java allows program to load classes dynamically at runtime. This is achieved by a following process:
+\begin{enumerate}
+	\item \textbf{Loading} - Load the bytecode from class file
+	\item \textbf{Linking} - Linking is the process of incorporating a new class to the runtime state of the JVM. It phase consists of 3 sub-phases:
+	\begin{enumerate}
+		\item \textbf{Verification} - Ensure that type in the binary former is correct and respects JVM restrictions.
+		\item \textbf{Preparation} - This phase consist of allocation memory for fields inside the loaded type.
+		\item \textbf{Resolution} - This phase is optional ( depends on JVM implementation ). Resolution is the process of transformation symbolic references in the type's constant pool into direct references. The implementation may decide to behave in lazy way and delay resolution for the time when the type is being actually used. Constant pool contains all references to variables and methods found during compilation time.
+	\end{enumerate}
+	\item \textbf{Linking Phase} - class variables are initialized to initial values
+\end{enumerate}
+
+Loading step loads data from class files in a binary from known as the bytecode.
 \subsubsection{Relevant Class Loaders}
 There are several class loaders used natively in Java. However we describe only 2 which are references in the thesis later. 
 
