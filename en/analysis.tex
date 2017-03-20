@@ -1,17 +1,37 @@
 \chapter{Analysis}
-mention comparison of different approaches to instrumenting Java applications.
+This chapter provides reasoning behind some architectural decisions of the monitoring platform. It describes different approaches for creating monitoring tool of this nature and provides arguments why the selected solution fits into the goals of this tool. The next section gives arguments why we decided to implement the application extensible instead of implementing all pieces from scratch. The last part of this chapter compares different approaches to the code instrumentation from the point of technical complexity and also the performance point of view
 
-\section{Instrumentation Library}
+\section{Platform Architecture}
+
+\subsection{Universal Monitoring Tool}
+\subsection{Extensible Monitoring Tool}
+describe our architecture - library which is extendable
+
+compare to other variants - 1 library for all great app transparency, no universality
+
+
+describe also deployment strategies and why we keep both - instrumentation per cluster vs per node
+vs support only spark transparency and universality
+
+\section{Application Modularity}
+provide arguments why we decided to do application extendible for different user interfaces and collectors
+\section{Instrumentation Methods}
+
+Compare instrumentation via raw native agent vs java agent in the same jvm vs instrumenting in second jvm.
+
+describe also the case of writing bytecode instrumentation library from scratch
+
+Mention also the variant with instrumenting in one process and have 2 JVMS and why it's not possible
+
+mention it's pluses and minuses
+
+\subsection{Java Agent Solution}
+\subsection{Native Agent Solution}
+\subsection{Instrumenting in Secondary JVM}
 
 Describe why bytebuddy has been chosen compared also to other approaches such as pure JVMTI instrumentation 
 
-\section{NanoMsg}
- Descrive why NanoMsg has been chosen
-\section{Instrumentation approaches}
-\subsection{Java Agent Solution}
-\subsection{Native Agent Solution}
-\subsection{Instrumenting in secondary JVM}
 
-give introduction to various instrumentation techniques and compare the 2 approaches
+
 
 
