@@ -1,4 +1,5 @@
-\chapter{Background }
+\chapter{Background}
+\label{chap:background}
 This chapter covers technologies which are relevant to the thesis. It starts with the overview of similar monitoring tools for cluster based applications and follows by short overview of tools for debugging of large scale applications. Later different approaches to applications profiling are described. 
 In the next several sections the technologies which have been consider or are used in the thesis in the current moment are introduced. It covers libraries for bytecode manipulation, communication, logging and Java relevant libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distributed package for the whole platform.
 
@@ -25,7 +26,7 @@ Each span its own id so it can be uniquely identified. In order to reconstruct t
 	\centering
 		\includegraphics[scale=0.7]{dapper_span.png}
 	\caption{Example of Span in Google Dapper. Picture taken from the Google Dapper paper}
-	\label{fig:dapper_span}
+	\ref{fig:dapper_span}
 \end{figure}
 
 Dapper is able to achieve application-level transparency and follow distributed control paths thanks to instrumentation of a few common, mostly shared libraries among Google developers. 
@@ -96,7 +97,7 @@ This can be solved by instrumentation profilers. These profilers build on the in
 However, we can look on profilers from different point of view and categorize them based on the level on which they operate and are able to record the information - system profilers and application specific profilers. 
 At application specific profilers, we are the most interested in profilers targeted for JVM platform.
 \begin{itemize}
-	\item system profilers
+	\item System profilers
 	System profilers operate on OS-level. They are great at showing system code paths, but are not able to capture method calls done for example in Java application.
 	\item JVM profilers
 	These profilers show Java methods, but usually not system code paths.
@@ -147,7 +148,7 @@ Flame charts can be created in a few simple steps, but it depends on the type of
 
 Purpose of this really short section was just to introduce the idea of Flame charts since it's one of the future plans the thesis could be extended to support. For more information about the flame charts please visit the Brendan Gregg's blog.
 \section{Bytecode Manipulation Libraries}
-This thesis highly depends on the instrumentation for which the byte-code manipulation is a core feature. Since the work is written in Java, we are mainly interested in instrumentation and byte-code manipulation libraries based on Java. This section covers . The purpose of this section is to introduce 4 standard bytecode manipulation libraries - Javassist, ByteBuddy, CGlib and ASM - and give their comparison. Since it's a core feature of the whole platform and affect the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. ByteBuddy was selected to be used in the thesis and the reasons why are mentioned bellow as well.
+This thesis highly depends on the  for which the byte-code manipulation is a core feature. Since the work is written in Java, we are mainly interested in instrumentation and byte-code manipulation libraries based on Java. This section covers . The purpose of this section is to introduce 4 standard bytecode manipulation libraries - Javassist, ByteBuddy, CGlib and ASM - and give their comparison. Since it's a core feature of the whole platform and affect the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. ByteBuddy was selected to be used in the thesis and the reasons why are mentioned bellow as well.
 
 \subsection{ASM}
 ASM is a low-level high-performance Java bytecode manipulation framework. It can be used to dynamically create new classes or redefined already existing classes. It works on the bytecode level so the user of this library is expected to understand the JVM bytecode in detail. ASM operates on event-driven model as it makes use of Visitor design pattern to walk through complex bytecode structures. ASM defines some default visitors such as \textit{FieldVisitor}, \textit{MethodVisitor} or \textit{ClassVisitor}. The ASM project can be a great fit for project requiring a full control over the bytecode creation or inspection since it's low-level nature.
@@ -233,6 +234,7 @@ The library also tries to apply concept called zero-copy if possible. When high-
 
 Example of data copying is transferring data from memory to network interface or from user application to underlying kernel.  We can see that zero-copy can't be implemented at all layers because for example without copying the data from the kernel to network interface, we could not actually exchange any data. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a big performance plus.
 \subsection{NanoMsg}
+\label{sec:nanomsg}
 NanoMsg [http://nanomsg.org/documentation-zeromq.html] is a socket library shadowing the differences in the underlying operation systems. It offers several communication patterns, is implemented on C and does not have any other dependencies. Generally, it offers very similar features to ZeroMQ since it's heavily based on it.
 
 Unlike ZeroMQ, nanomsg matches the full POSIX compliance. The author of the library states, that since it's implemented in C, the number of memory allocations is drastically reduced compared to c++ when using C++ STL containers for example. Also compared to ZeroMQ, objects are not tightly bound to particular threads this it gives the user flexibility to create their custom threading models without big limitations. NanoMsg should also implement zero-copy technique at additional layers which again leads to performance benefits.
@@ -255,6 +257,7 @@ Nanomsgxx [https://github.com/achille-roussel/nanomsgxx] is a C++11 mapping for 
 
 \subsubsection{Java Mapping}
 Several Java bindings of nanomsg library exists, but just jnanomsg library [http://niwinz.github.io/jnanomsg/latest/] is described here. This language binding is build on top of JNA - Java Native Access library. It offers all the functionalities offered by the core library but also introduces non-blocking sockets exposed via a callback interface.
+
 \section{Java Libraries}
 This section describes some fundamental Java related libraries on technologies on which this thesis heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described followed by basic introduction to Java Native Interface. Important Java concepts and classes relevant to the thesis are described in the following few sections.
 \subsection{JVMTI}

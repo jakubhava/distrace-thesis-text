@@ -15,22 +15,28 @@ During analysis of similar technologies and comparing different approaches for t
 The main reason for this solution is that a lot of monitoring solutions already exist and user are used to specific user interfaces or are using platform with already set-up data collecting. We wanted to support these use-cases so the environment where this monitoring tool runs does not have to be significantly changed. This leads to easier deployment of the platform. 
 
 \section{Instrumentation Methods}
-This work is heavily based on byte-code instrumentation. 
+This work is heavily based on byte-code instrumentation and the selection of instrumentation method heavily influences the rest of the platform. Usually the instrumentation can be done either via native or java agent. We briefly summarize the advantages and disadvantages of these 2 approaches and also provide arguments for the final solution which consists of combination of both techniques. 
+\subsection{Java Agent}
+Java agent is used for instrumenting the applications on the Java-language level where the user does not need to worry about the JVM internals. Usually the programmer extends and creates custom class file transformers and the agent internals take care of applying the code when required. The advantage of this approach is obvious - the ability to write the instrumentation in the high-level language without the knowledge of underlying bytecode. The distribution of Java Agents is also platform independent since they are packaged inside JAR files as the rest of Java classes. The disadvantages of this approach are usually the performance and the flexibility of the agent. Java agents are affected by garbage collection of the monitored application and can not be used to respond to internal JVM events. Also the additional objects created within the Java agent are put on the heap of monitored application. We can therefore influence the observations by the monitoring process itself. It is important to note that Java System classes can not be instrumented using Java Agent approach.
+\subsection{Native Agent}
+Native Agent is used for monitoring and instrumenting the applications on low-level programming language (C, C++) using JVMTI and JNI. These agents are written as native libraries on specific platforms so the packaging is not platform independent. The disadvantage of this method can be that the agent has to be written in non-Java language, but on the other hand this approach give us great flexibility in the instrumentation and monitoring the JVM state. For example, all classes, even the System classes can be instrumented using this approach and callbacks may be created to respond to several JVM internal events such as start or end of garbage collection, creation of new instance of specific class or switching threads. The big disadvantage of this approach is that it does not provide any helper methods to help with the code instrumentation and generally, the is a lack of stable instrumentation libraries written in C++ or C which could be used inside the agent. The developer of the native agent has therefore write all the required methods for extracting the relevant parts of the bytecode and the instrumentation itself.
 
-Compare instrumentation via raw native agent vs java agent in the same jvm vs instrumenting in second jvm.
 
-describe also the case of writing bytecode instrumentation library from scratch
+\subsection{Special Instrumentation JVM}
+In the mentioned approaches, the instrumentation is done in the same process as the monitored application. Thus the application's application performance can be affected in both approaches. The goal of this thesis is to allow the user to write the instrumentation in the high level programming language. The assumption was that not many users would like to write the instrumentation on the level of byte arrays as in the case of the native agent. On the other hand, we wanted to give the user the possibility to instrument System classes as well and to be able to capture also information available only in native agent approach.
 
-Mention also the variant with instrumenting in one process and have 2 JVMS and why it's not possible
+In order to take the best from the both approaches, we decided to create a so called Instrumentation Server. The instrumentation server is another JVM which receives the bytecode, performs the instrumentation and sends the bytecode back to the application.
+This approach takes the best from the 2 above since we are using the native agent on the application side and thus have access to all JVM internal information. When a class needs to be instrumented,  the byte array containing the bytecode is sent to the instrumentation server for the instrumentation. On the instrumentation server, we load the bytecode using the ByteBuddy library and can perform instrumentation in high-level Java based language, even for System classes without affecting the performance of the monitored applications.
 
-mention it's pluses and minuses
+ByteBuddy was selected for the purposes of this instrumentation as it allows to write the instrumentation in Java but according the author, with considering the performance as well. Comparing to Javassist, the code is not written inside Java Strings, which means that the instrumentation code can be validated in today's IDE during compilation time and bugs can be found easier. The API of the library is well-documented and the library is under active development. ByteBuddy is highly configurable which was also the main reason for choosing it as instrumenting classes for one JVM inside different JVM didn't work from scratch and turned out to be challenging part of the thesis.
 
-\subsection{Java Agent Solution}
-\subsection{Native Agent Solution}
-\subsection{Instrumenting in Secondary JVM}
+The disadvantage of the chosen approach is that the observed application have to send the the bytecode to the instrumentation server and wait for the instrumented bytecode. However several optimizations have been implemented to minimize this as much as possible. More information about these optimizations can be found in the \hyperref[sec:deploy_mode]{Deployment mode} section of \hyperref[chap:design]{Design} chapter.
 
-Describe why bytebuddy has been chosen compared also to other approaches such as pure JVMTI instrumentation 
+\subsection{2 JVMs Inside a Single Process}
+The approach with the instrumentation server could be further optimized for some use-cases if more Java Virtual Machines could be running in a single native process. This would mean that we could communicate between the instrumentation JVM and the monitored application inside one process this avoiding inter-process or network communication delays whilst still being able to instrument classes in high-level language. However, as of JDK/JRE 1.2, creation of multiple VMs in a single process is not supported \cite{MoreJVMOnceProccess}.
 
+\section{NanoMsg as Communication Layer}
+NanoMsg has been chosen for communication layer. t hides the platform specific aspects of sockets comparing to raw sockets. It has also several performance benefits and general improvements over the well-known ZeroMq such as the better threading and better implemented zero-copy technique. The mappings mentioned in the \hyperref[sec:nanomsg]{Nanomsg} section of \hyperref[chap:background]{Design} chapter were tested and worked as expected.
 
 
 
