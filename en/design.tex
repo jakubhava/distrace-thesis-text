@@ -12,6 +12,7 @@ mention issues with circular dependencies but leave how it is implemented into t
 \subsection{Native Agent Arguments}
 \subsection{Used JVMTI Callbacks}
 \section{Instrumentation Server}
+ There is also deployment strategy which allow the programmer to build the server together with the application classes. This has the effect that when a class needs to be instrumented, the agent is not required to send it to the server because server already has the class available. The solu
 \subsection{Instrumentation Protocol}
 \subsection{Communication Modes}
 \subsection{Class Caching}
