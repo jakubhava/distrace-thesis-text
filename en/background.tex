@@ -278,6 +278,7 @@ In the Live phase, the agent is dynamically attached to running application. Thi
 We don't aim to describe full JVMTI functionality here, please consider this just as brief introduction to the interface and inspect the documentation for more information. In the following sections we aim to very briefly describe the important parts of JVMTI relevant to the thesis.
 
 \subsubsection{JVMTI Agent Initialization}
+\label{subsec:jvmti_init}
 When client is started, the method \newline \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)} is called. In this method we can do custom initialization for our agent.
 
 Usually the initialization consist of several phases:
