@@ -116,18 +116,50 @@ The native agent accepts several arguments which can be used to affect the agent
 \end{itemize}
 
 \section{Instrumentation Server}
- There is also deployment strategy which allow the programmer to build the server together with the application classes. This has the effect that when a class needs to be instrumented, the agent is not required to send it to the server because server already has the class available. The solu
-\subsection{Instrumentation Protocol}
-\subsection{Communication Modes}
-\subsection{Class Caching}
+\label{sec:inst_server}
+Instrumentation server is responsible the the code instrumentation in separated virtual machine then the application is running. In this section we cover several design aspects of the instrumentation server, leaving the implementation details on the following sections. As already mentioned, the server can run locally on each application node or it can be shared among all the application nodes. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework.
+
+Except from the cached classes, the server does not contain any application state and it just reacts to the agent requests. It can accept four type of requests:
+\begin{itemize}
+	\item Request for code instrumentation.
+	\item Request for storing byte code for a class on the server.
+	\item Request for sending dependency classes needed by the agent
+	\item Request to check whether the server contains specific class or not.
+\end{itemize}
+The server interacts in more ways with the agent, however they are just sub-parts of the communication initiated by one of these 4 request types.	
+
+\subsection{Instrumentation}
+The instrumentation of the class is triggered by the agent and it's done in 2 stages. The first stage informs the client whether the class is already on the instrumentation server or not. The second stage is the instrumentation itself. The first stage is initiated by the agent who asks the server whether the class is available on the server or not. The server performs this check in 3 phases:
+\begin{enumerate}
+	\item Check whether the instrumented bytecode for this class is available
+	\item If not, check wether the original bytecode for this class is available
+	\item If not, check if we can load the class using our context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the application classes on the instrumentation server classpath. 
+\end{enumerate}
+
+The server informs the client if it does not have the class, the agent sends the class and the server registers the received byte-code under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
+The second stage follows the first stage immediately the first one. If the server already contains the instrumented class in the cache, it sends it right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
+
+The code instrumentation is handled by \texttt{CustomAgentBuilder }and \texttt{BaseAgentBuilder} classes.
+The instrumentation server expects instance of \texttt{CustomAgentbuilder} on the input of its start method. This is abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToGeneratedClasses)} where the builder is wrapper around the Byte Buddy \texttt{AgentBuilder} class which is used to define the class transformers.
+
+The user needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors which are less verbose then the standard Byte Buddy approaches.
+
+Each created transformer has to have associated some interceptor which defines the instrumented code. Each interceptor has to implement \texttt{Interceptor}  interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the sever. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated jar in a same way as it the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface.
+
+Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation happens exactly as desired. The class implements for 4 byte buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
+\begin{itemize}
+	\item \texttt{onTransformation} listener is called immediately before the class is instrumented. Our implementation of the listener also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
+	\item \texttt{onIgnored} listener is called when the class is not instrumented. The class is not instrumented when the user does not define any transformer for the specified class.
+	\item \texttt{onError} listener is called when some exception occurred during the instrumentation.
+	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners
+\end{itemize}
+
+TODO: Write about Pool Strategy and  dependencies
 \subsection{Custom Service Loader}
-\subsection{Public interfaces}
-\subsection{Extending the Server}
-.. instrumentation server can run on the same node or over the network. Instrumentation server can have client code attached or not.
-\subsection{Class Loaders}
+briefly describe difference from the basic service loader
 \subsection{JSON Generation}
-\subsection{Deployment Mode}
-\label{sec:deploy_mode}
+describe how we generate the json 
+
 \section{User Interface}
 \label{sec:zipkin_ui}
 \subsection{Zipkin UI Overview}

@@ -160,6 +160,7 @@ Javassist does not have support for the code injection itself. Therefore, it can
 CGLib as another byte-code manupulation library built on top of ASM. The main concepts are build around `Enhancer` class which is used to create proxies by dynamically extending classes at runtime. The proxified class is then used to to intercept method calls and the result of previous methods or fields as we define. However cglib lacks comprehensive documentation making harder to even understand the basics from the users.
 
 \subsection{Byte Buddy}
+\label{sec:byte_buddy}
 ByteBuddy is fairly new, light-weight and high-level bytecode manupulation library. The library depends only on visitor API of the ASM library which does not further have any other dependencies. It does not require from the user to understand format of java bytecode but despite this, it gives the users full flexibility to redefine the byte code according their specific needs. Also, classes created or instrumented by Byte Buddy does not depend on the Byte Buddy framework. Despite it's high-level approach, it still offers great performance and is used at frameworks such as Mockito or Hibernate. Byte Buddy can be used for both code generation and transformation of existing code.
 
 \subsubsection{Code Generation}
