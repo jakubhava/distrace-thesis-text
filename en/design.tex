@@ -154,11 +154,44 @@ Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAge
 	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners
 \end{itemize}
 
-TODO: Write about Pool Strategy and  dependencies
+
+
+Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is override in the child class. The dependencies are all the classes specified in the class file such as type of return value, arguments, super class or interfaces. 
+By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw byte code of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network we use our \texttt{InstrumentorClassloader} to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
+
+However, Byte Buddy internal API does not work with raw byte code for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and contains the metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second one class is used for caching the type descriptions so they are not created every time the class is accessed. 
+
+So in overall, class lookup is done in the following 2 steps:
+\begin{enumerate}
+	\item Check whether type description for the class is available. If yes, load the description from the cache.
+	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for it and put it on the cache
+\end{enumerate}
+
 \subsection{Custom Service Loader}
-briefly describe difference from the basic service loader
+In order to keep the instrumentation extendable we use concept of service loaders for loading the extensions. This is done for 2 types:
+\begin{itemize}
+	\item Custom span savers. Each span saver inherits from the abstract class \texttt{SpanSaver}
+	\item Custom Interceptors. Each interceptor implements the interface \texttt{Interceptor}
+\end{itemize} 
+The user can create custom span savers and interceptors by either inheriting the desired class or implementing the required interface and put the name of the class inside the text file in the META-INF directory in the JAR file. The text file has to have the name of the abstract class or the interface the implementation is for. For example, when user creates a new Interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} has to \textbf{x.y.InterceptorA}.
+
+Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as we need to have the \texttt{Class} object representing the class available. Therefore a custom service loader was created for this purpose. This loader works in very similar way as the standard Java one, but instead of returning the instances of loaded services it just returns loaded service classes. 
 \subsection{JSON Generation}
-describe how we generate the json 
+The spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
+
+The JSON handling is based on the https://github.com/ralfstx/minimal-json library, however we created custom simplified implementation which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
+
+This JSON support is designed using several classes:
+\begin{enumerate}
+	\item \textbf{JSONValue}. The abstract ancestor of all JSON types. This type defines common methods to all implementation.
+	\item \textbf{JSONString}. Class representing the string type.
+	\item \textbf{JSONNumber}. Class representing the number type.
+	\item \textbf{JSONLiteral}. Class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
+	\item \textbf{JSONArray}. Class representing the JSON arrays. It has support for adding new elements into the array.
+	\item \textbf{JSONObject}. Class representing the JSON objects. It has support for adding a new items in the object.
+\end{enumerate}
+
+Each \textbf{JSONValue} can be printed as valid JSON string and the printing is driven by a class \texttt{JSONStringBuilder}. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
 
 \section{User Interface}
 \label{sec:zipkin_ui}
