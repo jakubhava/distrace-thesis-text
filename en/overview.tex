@@ -20,7 +20,7 @@ The other deployment method is that the instrumentation server runs on each appl
 \end{figure}
 
 \section{Spans}
-Spans are the main tool used for capturing distributed traces. They are special classes which instances are injected to instrumented classes to keep track of the communication and the state between the nodes in the distributed application. Usually, the initiator creates so called parent span and new calls started within the span creates new nested spans. The only information required to be available in Span class is its id and parent span id and in order to be able to distinguish different spans, also unique trace id which is created during root span creation. 
+Span is the main concept used for capturing distributed traces. They are special classes which instances are injected to instrumented classes to keep track of the communication and the state between the nodes in the distributed application. Usually, the initiator creates so called parent span and new calls started within the span creates new nested spans. The only information required to be available in Span class is its id and parent span id and in order to be able to distinguish different spans, also unique trace id which is created during root span creation. 
 
 Created spans are processes using different span savers and can be send to the user interface using various data collectors.
 \section{Span Savers \& Data Collectors}

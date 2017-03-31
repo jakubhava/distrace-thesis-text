@@ -8,6 +8,7 @@ The most significant and relevant platforms on which this thesis is based are Go
 
 The following two sections describe the basics of the both mentioned platform. Since both Zipkin and Google Dapper shares some basic concepts, only relevant and interesting parts to the thesis of each platform are described.
 \subsection{Google Dapper}
+\label{dapper}
 Google Dapper is proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
 \begin{itemize}
 	\item \textbf{Low overhead} \newline
@@ -41,6 +42,7 @@ Google Dapper is able to follow distributed control paths thanks to instrumentat
 Sampling of the captured data has also a positive effect on the low-level overhead of the whole application. As mentioned in the paper, the volume of data processed at Google is significant so only samples are taken at a time.
 
 \subsection{Zipkin}
+\label{zipkin}
 Zipkin is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
 information are recorded automatically, for example time when Span was created, whereas some information are optional. Zipkin has also support for custom application-specific annotations.
 
@@ -63,7 +65,11 @@ The instrumented application is responsible for creating valid traces. For that 
 	Basic, but very useful user interface. It allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format.
 \end{itemize}
 The Zipkin Web UI is used as front-end for the monitoring tool developed on this thesis. More information how it is used in the thesis is described in more detail in \hyperref[sec:zipkin_ui]{Zipkin UI} section of \hyperref[chap:design]{Design} chapter.
+ \section{HTrace}
+ \label{htrace}
+ HTrace https://github.com/cloudera/htrace is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts as Spans and Traces. In order to allow tracing of the application, the users need to manually attach Span identifiers to desired RPC's (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the Span and Trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread. Htrace has also support for custom Spans and annotations and thus allows the user to collect application specific information as part of the Spans. 
  
+ The disadvantage of this tool is the need for instrumenting the monitored application in order to allow the tracing and spans collection.
 \section{Tools for Large-Scale Debugging}
 Standard techniques and tools can be used for debugging distributed applications, however the main purpose of these tool is to debug a single node applications and therefore when applying them on nodes in the distributed application the information about dependencies between different nodes in the cluster is not available. Many tools for large-scale debugging exist, but this section just points out basic ideas behind two different approaches - discovering scaling bugs and behavior based debugging. 
 
@@ -131,10 +137,13 @@ The purpose of this really short section is just to introduce the idea of Flame 
 The thesis highly depends on the Java byte code instrumentation and this section gives overview of four byte code manipulation libraries considered to be used at the thesis:  Javassist, Byte Buddy, CGlib and. Since it's a core feature of the whole platform and affects both the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following \hyperref[analysis]{Analysis} section.
 
 \subsection{ASM}
+\label{asm}
 ASM is a low-level high-performance Java bytecode manipulation framework. It can be used to dynamically create new classes or redefined already existing classes. It works on the bytecode level so the user of this library is expected to understand the JVM bytecode in detail. ASM operates on event-driven model as it makes use of Visitor design pattern to walk through complex bytecode structures. ASM defines some default visitors such as \textit{FieldVisitor}, \textit{MethodVisitor} or \textit{ClassVisitor}. The ASM project can be a great fit for project requiring a full control over the bytecode creation or inspection since it's low-level nature.
 \subsection{Javassist}
+\label{javassist}
 Javassist is well-known byte code manipulation library built on top of ASM. It allows the Java programs to define new classes at run-time and also to modify class files prior the JVM loads them. It works on higher level of abstraction compared to ASM so the user of this library is not required to work with the low-level byte code. The advantage of Javassist is that the injected code does not depend on the Javassist library at all. The code to be injected to the existing byte code is expressed as Java Strings. The disadvantage of this approach is that the the code to be injected is not subject to code inspection in most of the current IDEs. The strings representing the code are compiled at run-time by special Javassist compiler. This run-time compilation works well for most of the common programming structures but for example auto-boxing and generics are not supported by the compiler. Also it is important to mention that Javassist does not have support for the code injection itself. Therefore, it can be used for specifying the code which alters the original code but external tool needs to be used to inject the code itself.
 \subsection{CGLib}
+\label{cglib}
 CGLib as another byte-code manupulation library built on top of ASM. The main concepts are build around `Enhancer` class which is used to create proxies by dynamically extending classes at run-time. The proxified class is then used to intercept method calls and the result of previous methods or fields as we define. However CGLib lacks comprehensive documentation making harder to even understand the basics.
 
 \subsection{Byte Buddy}
@@ -195,8 +204,10 @@ However, the instrumentation using Advice API is only allowed before or after th
 \section{Communication Middleware}
 This thesis consist of several parts written in different languages which need be able to communicate. In order to achieve communication in such an environment, following libraries have been inspected.
 \subsection{Raw Sockets}
+\label{raw_sockets}
 It this case raw sockets is not a library but it is referred to as using raw sockets on their low-level API. Using raw sockets has several pros and cos. It give the user full flexibility and the highest possible performance since there isn't any additional layer between the application data and the socket itself. However, integrating different platforms and different languages can be time consuming. Several frameworks have already been created to hide the implementation details of specific platforms so the user does not need to know about the language or underlying platform.
 \subsection{ZeroMQ}
+\label{zeromq}
 ZeroMq is a communication library built on top of raw sockets. The core of the library is written in C++ however binding into different languages exist. The library is able transport messages inside a single process, between different processes on the same node or transfer messages over the network using TCP or also using multicast. The library also allows the user to create typologies using one of the many supported communication patterns. For example,  publisher-subscriber or request-reply patterns are supported. The library has several benefits compared to raw sockets:
 \begin{itemize}
 	\item Hiding the differences between underlying operating systems.
@@ -212,7 +223,7 @@ The library tries to apply concept called zero-copy whenever possible. When high
 
 Example of data copying can be transferring data from memory to network interface or from user application to underlying kernel.  It  can be seen that zero-copy can't be implemented at all layers. For instance,  without copying the data from the kernel to network interface, no data could be actually exchanged. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a big performance benefit.
 \subsection{NanoMsg}
-\label{sec:nanomsg}
+\label{nanomsg}
 NanoMsg [http://nanomsg.org/documentation-zeromq.html] is a socket library shadowing the differences between the underlying operation systems. It offers several communication patterns, is implemented on C and does not have any other dependencies. Generally, it offers very similar features to ZeroMQ since it's heavily based on it.
 
 Unlike ZeroMQ, Nanomsg matches the full POSIX compliance. The author of the library states, that since it's implemented in C, the number of memory allocations is drastically reduced compared to c++, where, for example, C++ STL containers are used  Also compared to ZeroMQ, objects are not tightly bound to particular threads. This gives the user flexibility to create their custom threading models without significant limitations. NanoMsg also implements zero-copy technique at additional layers which again leads to performance benefits compared to ZeroMQ.
@@ -236,6 +247,7 @@ Several Java bindings of Nanomsg library exists, but just jnanomsg library [http
 \section{Java Libraries}
 This section describes some fundamental Java related libraries and technologies on which this thesis heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described, followed by the basic introduction to the Java Native Interface. Important Java concepts and classes relevant to the thesis are described in the following few sections.
 \subsection{JVMTI}
+\label{JVMTI}
 The JVM Tool Interface [https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html] is an interface used by development and monitoring tools for communication with JVM. It allows the user to monitor and control the the application running in Java virtual machine. An application communicating with the JVM using JVMTI is usually called an agent. Agents are notified via events happening inside JVM and can react upon them. Agents run in the same process as the application itself which reduces the delay of the communication between the application and the agent. Since JVMTI is an interface written in C, agents can be written in C or C++. 
 
 JVMTI supports 2 modes how an agent can can be started.  It can be either in \textbf{OnLoad} phase or in \texttt{Live} phase. In the \textbf{OnLoad} phase, the client is started together with the application and agent location can be specified using 2 arguments:
@@ -274,6 +286,7 @@ As mentioned above, there are several events sent from the observed application.
 \end{itemize}
 
 \subsection{JNI}
+\label{JNI}
 Java Native Interface is a framework which allows Java code running in Java Virtual Machine to call native applications ( usually written in C or C++ ). It also allows native applications to access and call Java methods. All JNI operations require instance of class \texttt{JNIEnv}. This environment keeps the connection to the virtual machine. When calling a Java method from the native application, the correct method has to be first found. This is achieved by specifying  the types and method signature of the method.
 \subsubsection{Java Types Mapping}
 For each Java primitive type there is a corresponding native type in JNI. Native types always start with the \textbf{j} as the prefix, for example \texttt{boolean} is Java type whereas \texttt{jboolean} as a native type.
