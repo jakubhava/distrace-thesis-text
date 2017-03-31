@@ -7,7 +7,7 @@ This thesis tries to overcome some of the limitations of the relevant monitoring
 
 \hyperref[zipkin]{OpenZipkin} is stable open-source tracing system. Zipkin creates several pre-instrumented libraries which may be used at the monitored application to communicate with the Zipkin backed. These libraries try to minimize the amount of code changes in application sources, however the user is still required to change the application source code to add custom annotations or change the default tracing mechanism. The similar holds for very similar tool developed by Cloudera, \hyperref[htrace]{HTrace}. These tools also perform the instrumentation in the same JVM (Java Virtual Machine) where the application is running which can have performance impact on the application itself.
 
-The tool proposed by this thesis tries to address these problems and find solutions how applications can be instrumented without the need of changing the source code and have the minimal performance impact on the running application.
+The tool proposed by this thesis tries to address these problems and find solutions how applications can be instrumented without the need of changing the source code and have the minimal performance impact on the running application. It however shares the same concepts as \textit{Span} and\textit{ Distributed traces} with the mentioned platforms.
 \section{Requirement - Small Footprint and High Performance}
 The mentioned cluster monitoring tools can affect the application performance and memory consumption since they perform instrumentation in the same virtual machine as the monitored application. One of the thesis requirements is to have  a minimal footprint on the monitored application.
 
@@ -56,7 +56,7 @@ On of the most important goals of the thesis is to achieve high level of applica
 
 The rejected approach was to create an universal monitoring tool similar to Google Dapper, but be allowed to monitor mostly shared aspects of distributed applications. Whilst this would give the user great flexibility, universality and would also ensure that the users don't need to extend the library, it was decided as not a feasible task. Every platform or application is different in it's architecture or in the way how it communicates and therefore identifying the shared parts between all distributed applications is extremely challenging task. Also, such instrumentation tool could only instrument very basic information about Java-based programs.
 
-The chosen approach for the monitoring tool was to design it as an general extendable instrumentation library with two kinds of users - developer and end user. The tool should be available as a library with well-defined methods for defining the instrumentation points and specifying the custom annotations. The developer of the application is responsible for extending this library and based on it, create application-specific monitoring tool. Therefore the developer has to have understanding of the monitored application and has to know the type of information which are to be collected. The end-user of this final library is just responsible for starting the application with the monitoring tool attached and does not have to have understanding of the application internals.
+The chosen approach for the monitoring tool was to design it as an general extendable instrumentation library with two kinds of users - developer and end user. The tool should be available as a library with well-defined methods for defining the instrumentation points and specifying the custom annotations. The developer of the application is responsible for extending this library and based on it, create application-specific monitoring tool. Therefore the developer has to have understanding of the monitored application and has to know the type of information which are to be collected. The developer  also takes care of defining where a new span starts and when existing span ends. The end-user of this final library is just responsible for starting the application with the monitoring tool attached and does not have to have understanding of the application internals.
 
 The advantage of this approach is that only core instrumentation library needs to be created which is universal and generic to all Java-based applications. On the other hand the application's developer is required to extend the library in order to provide the desired monitoring functionality. However, for this price, the original application can remain unchanged and from the end-user point of view, the monitoring tool is completely transparent to the monitored application.
 
@@ -92,6 +92,24 @@ The main reason for this solution is that a lot of monitoring solutions already 
 \subsection{Selection of the User Interface}
 Zipkin UI was selected as the default user interface for the thesis. The main reasons for its selection were the simplicity of the interface and ease of use . It also fulfills the visualization requirements of the thesis as it allows the user to see dependencies between spans and also whole trace tree as well. However as mentioned above, the monitoring platform is not tightly-coupled to this user interface.  It is described later in the thesis how the user can create plug-in custom user interface.
 
-\section{Summarize of Desired Features}
+\section{Summary of Features}
 This section just summarize the list of desired and not-desired features based on the previous background and analysis.
+
+Desired features and properties of the thesis based on the analysis are:
+\begin{itemize}
+	\item Ability to collect distributed traces and spans via the instrumentation.
+	\item Native agent implemented in C++ to be attached to a Java application. The native agent is universal to all Java applications and is not supposed to be changed.
+	\item Instrumentation server implemented in Java used for the instrumentation. The instrumentation server acts as the core library which can be extended by the application's developer for the specific application. Byte Buddy library is to be used within the instrumentation server for the instrumentation and specifying the instrumentation points.
+	\item NanoMsg library to be used as the communication layer between the native agent and instrumentation server.
+	\item Support for the Zipkin user interface. The user interface is used to visualize the collected spans.
+	\item Ability to replace the default user interface with the custom user interface.
+\end{itemize}
+
+Selected features and properties which are not desired by this thesis:
+\begin{itemize}
+	\item Create a custom user interface. 
+	\item Create an universal instrumentation tool which would not require the developer to specify the instrumentation points and specify start and end of spans.
+	\item Implement byte code instrumentation in C++.
+	\item Instrument the Java byte-code in the same machine as the running application.
+\end{itemize}
 
