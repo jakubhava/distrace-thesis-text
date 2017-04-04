@@ -1,12 +1,11 @@
 \chapter{Design}
 \label{chap:design}
-This chapter describes design of the whole platform in details, however implementation specifics of some parts of the tool are described in the following chapter.  This chapter starts with an overview of the complete platform and follows by a simple use-case to give the reader idea how this tool is mean to be used. 
+This chapter describes design of the whole platform in details, however implementation specifics of some parts of the tool are described in the following chapter.  This chapter starts with an high-level overview of the complete platform and interactions between the parts and follows by a simple use-case to give the reader idea how this tool is mean to be used. 
 
 Spans and their format are described next followed by design of the native agent and instrumentation server. This chapter ends by describing the used Zipkin user interface and also JSON format in which the user interface accepts the data from the instrumentation server. 
 
-
 \section{Overview}
-This section gives high-level overview of the platform and shortly describes the basic parts and the relations between each part. Main purpose of this tool is to collect distributed traces. In order to achieve that, the thesis is based on the concept of Spans. Spans are used to denote some specific part of the communication between the communicating nodes and are the important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication where a span inside the trace represents usually a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within this span create new nested spans. Created spans can be processed using different span savers and can be send to the user interface using various data collectors. 
+Main purpose of this tool is to collect distributed traces. In order to achieve that, the thesis is based on the concept of Spans. Spans are used to denote some specific part of the communication between the communicating nodes and are the important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication where a span inside the trace represents usually a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within this span create new nested spans. Created spans can be processed using different span savers and can be send to the user interface using various data collectors. 
 
 Spans are processed using Span Savers. Span savers are used to save spans in desired format on disk or on the network for further data collection and collected data are used for Spans visualizations in the user interface. The user interface receives the spans from the span savers or data collectors and present them to the user in a form of trace trees.
 
@@ -28,7 +27,16 @@ The tool therefore consists of three main parts:
 	\item User Interface
 \end{itemize}
 
+
+The graph \ref{fig:architecture} denotes the basic relationships between the major parts. Each part is explained in more detail later in this chapter. \begin{figure}
+	\centering
+	\includegraphics[scale=0.6]{architecture.png}
+	\caption{Basic relationship between the major components. Instrumentation server communicates with the native again mainly in order to instrument classes. The Application's communicates with the user interface by sending the spans. Spans can be send either via data collection agent or one of the default span savers explained later in this chapter.}
+	\label{fig:architecture}
+\end{figure}
+
 \section{Example Use Case}
+TODO: write proper small example!
 In order to have a better understanding how this platform can be used we provide simple example of client-server application as an use-case, so far without the code. Clients query the server and server provides them with the response. We would like to instrument the client and the server and monitor the communication between the client and the server.
 
 Because client and the server are different applications, we need to create 2 different instrumentation servers and specify what is the method and a class which is required to be instrumented and what should happen in the instrumented code. In this case we just want to add custom annotations to recorded spans which are specific to the client-server communications.
@@ -39,62 +47,98 @@ We can see that the only part the user needs to worry about is the extension of 
 
 \section{Spans and Trace Trees}
 \label{subsec:spans}
-Span is the main concept used for capturing distributed traces. They are special classes which instances are injected to instrumented classes to keep track of the communication and the state between the nodes in the distributed application. Usually, the initiator creates so called parent span and new calls started within the span creates new nested spans. The only information required to be available in Span class is its id and parent span id and in order to be able to distinguish different spans, also unique trace id which is created during root span creation. 
-As mentioned briefly in the previous section, spans are used to gather the information about the distributed calls or so called, distributed stack traces. Spans are defined as part of the Instrumentation server but since it's the most important concept in the thesis, we explain them in the separated section. 
-Created spans are processes using different span savers and can be send to the user interface using various data collectors.
-Spans has several mandatory and optional fields. The mandatory fields are trace id, id and parent id. Trace id represents one complete distributed call among all interacting nodes on the cluster. The field is attached automatically when a new root span is created. Root span is a first one which is created inside a trace. The root span does not have parent id field set up so the user interface backend can distinguish between regular spans and root spans. Parent if of a span is always id of span from which we received a request to perform some task. The span and its parent span can be located on the same node and on different nodes as well. The first can be useful in cases we would like to capture the communication between different threads on the same node in the same manner as the rest of cluster communication
+As mentioned briefly in the previous section, spans are used to gather the information about the distributed calls or so called, distributed stack traces. Points in the code where spans are created and closed are defined as part of the Instrumentation server but since it's the most important concept in the thesis, we explain them in the separated section. 
 
-Span have several additional fields which are set and are used in the Zipkin UI. Each span has also
+Spans are the main concept behind capturing the distributed traces. They are special classes which instances are injected to instrumented application's classes to keep track of the communication and the state between the nodes in the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span savers and can be sent to the user interface using various data collectors.
+
+Spans has several mandatory and optional fields. The mandatory fields are trace id, span id and parent span id. Trace id represents one complete distributed call among all interacting nodes on the cluster. This field is attached automatically when a new root span is created. Root span is a first span created inside a trace. The root span does not have parent id field set up and therefore the user interface back-end can distinguish between regular spans and root spans and therefore can identify the start of the whole trace. Parent id of a span is always id of span from which the span received a request to perform some task. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace several threads as separated spans within a single node.  
+
+Span have several additional fields which which are later used in the user interface. The fields are:
 \begin{itemize}
-	\item \textbf{Timestamp} - when the span started
-	\item \textbf{Duration} - how long the span lasted
+	\item \textbf{Timestamp} - when the span started.
+	\item \textbf{Duration} - how long the span lasted.
 	\item \textbf{Annotations} - annotations which are used to carry additional timing information about spans. For example time when span has been received on the receiver side or the time the span has been processed at the receiver side can be set using the annotations.
-	\item \textbf{Binary annotations} - annotations which can be used to carry around application specific details. We can use these annotations to transfer information between communication nodes inside of Spans. For example one node can store number number of bytes sent during the request and the receiver can use this information to calculate overall number of bytes received from this particular node.
+	\item \textbf{Binary annotations} - annotations which can be used to carry around application specific details. We can use these annotations to transfer information between communication nodes inside of spans. For example, one node can store number of bytes sent during the request and the receiver can use this information to calculate overall number of bytes received from this particular node.
 \end{itemize}
 
-Each annotation has also endpoint information attached. This consist of:
+Each annotation, both binary and regular, has also endpoint information attached. This element consist of:
 \begin{itemize}
-	\item \textbf{ip} - ip of node on which this event is recorded
-	\item \textbf{port} - port on which the service which recorded the span is running
-	\item \textbf{service name} - service name can be used to group different traces by names and can be later used to filter such traces in the user interface
+	\item \textbf{ip} - ip of the node on which this event was recorded
+	\item \textbf{port} - port on which the service which recorded the span is running.
+	\item \textbf{service name} - service name which is used to group different traces by names and can be later used to filter traces using this field in the user interface.
 \end{itemize}
 
-The following sections contains information about how span are exported for external communication and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
-\subsection{Span Savers}
-The platform allows the user to create custom span savers which can be used to plug-in custom data collectors and custom user interface. Spans are internally represented in JSON format. The thesis contains support for working with JSON data and it is explained in more detail later in the  \hyperref[chap:implementation]{Implementation} chapter. In order to be able to send span data to corresponding user interface or just to save them on disk the spans can be processes using various span savers.
+The following sections contains information about how spans are exported for external communication with the user interface and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
+\subsection{Span Savers \& Data Collectors}
+Spans are exported from the application using the span savers. Span saver for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span saver is static field of the \texttt{Span} class. Span savers need to be available to the monitored application and therfore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
 
-Each saver has to extend from abstract ancestor defining common methods for each span saver. Also in order to be able to use the saver automatically in the code, it has to have a constructor with single \texttt{String} argument accepting saver arguments.
+The thesis provides two default implementation of span savers but also allows the developer to create new span savers. New span savers may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
 
-SpanSaver abstract class has 2 abstract methods:
+Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and  it is explained in more detail later in the  \hyperref[chap:implementation]{Implementation} chapter. This format can be again changed by the custom span saver.
+
+Span saver implementations need to extend from the abstract ancestor defining common methods for each span saver. Also, in order to be able to use the saver automatically in the code, it has to have a constructor with single \texttt{String} argument accepting saver arguments. The arguments format is defined in the case of default span savers however the developer may use any format in case of custom span savers. The common ancestor, \texttt{SpanSaver} abstract class has two abstract methods:
 \begin{itemize}
-	\item \texttt{saveSpan}. This method is used for saving span. Custom span saver implementaion may save the data on local disk or send over network. The destination is not limited.
-	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also argument which contains arguments for the defined span saver. Each span saver is responsible for parsing the arguments.
+	\item \texttt{saveSpan}. This method is used for saving the span. Custom span saver implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, this method is called asynchronously in a separated thread to allow asynchronous span processing which has a performance benefit.
+	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span saver. Each span saver is responsible for parsing the span saver arguments.
 \end{itemize}
 
-Spans are processed asynchronously using executor service using the span savers. By default, the platform supports 2 simple span savers:
+TODO: diagram of zipkin span saver - json format
+TODO: diagram of span saver used with the custom data collector - json format
+TODO: diagram of custom span saver
+
+As mentioned above, the tool provides two default simple span savers:
 \begin{itemize}
-	\item  \texttt{DirectZipkinSaver} - The default span saver sends asynchronously the collected span to the user interface right away without storing the data for disk to be collected by an external data collector. In this case the functionality the span saver and the data collector functionalities are handled by this single saver. This span saver should be used for demonstration purposes only since  it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
+	\item  \texttt{DirectZipkinSaver} - The default span saver sends the collected span  asynchronously to the user interface right away without storing the data on disk to be collected by an external data collector. In this case the functionality of the span saver and the data collector are handled by this single saver. This span saver should be used for demonstration purposes only since it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
 	
-	This saver accepts a single argument which is ip and port of the Zipkin UI service.
-	\item  \texttt{JSONDiskSaver} - The second available span saver saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface via custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the user interface in the production. This saver  accepts single argument which is a directory where collected spans are saved.
+	This saver accepts a single argument which is ip and port of the Zipkin UI service. The diagram \ref{fig:zipkin_span_saver} shows how the Zipkin span saver is used.
+	
+		\begin{figure}
+			\centering
+			\includegraphics[scale=0.6]{zipkin_span_saver.png}
+			\caption{Using the Zipkin span saver to save spans directly to Zipkin user interface without the data collector agent.}
+			\label{fig:zipkin_span_saver}
+		\end{figure}
+	\item  \texttt{JSONDiskSaver} - The second available span saver saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This saver accepts single argument which is a directory where collected spans are saved. The diagram \ref{fig:disk_span_saver} shows how JSON disk span saver is used.
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.5]{disk_span_saver.png}
+		\caption{Using the JSON disk saver together with the data collection service but Zipkin user interface .}
+		\label{fig:disk_span_saver}
+	\end{figure}
 \end{itemize}
+Additionally, the diagram \ref{fig:custom_span_saver} shows how a custom span saver may be used.
 
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.5]{custom_span_saver.png}
+	\caption{Using custom span saver together with the data collection service and custom user interface.}
+	\label{fig:custom_span_saver}
+\end{figure}
+In order to give the developer the flexibility to add new savers without changing the internals, the span savers have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanSaver} abstract class. The reason why the classes needs to be discovered is explained in the following \hyperref[native_agent_design]{Native Agent} section. 
 
-In order to be able to allow the flexibility to add new savers, we have register them in the META-INF directory of the generated JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanSaver} abstract class. The reason why the classes needs to be discovered is explained in the following Native Agent section. To make the developer life easier we use the \textbf{AutoService}  library from \textit{https://github.com/google/auto/tree/master/service}. Instead of manually registering the implemented span savers into META-INF directory, we can annotate them with \texttt{AutoService} annotation with a single argument specifying the abstract parent. The library then takes care of registering the classes automatically so the human error is minimized.
+To make the developer life easier, the \textbf{AutoService} library from \textit{https://github.com/google/auto/tree/master/service} is used. Instead of manually registering the implemented span savers into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanSaver}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
 
 \subsection{Trace Context}
-Trace context is class used for storing the information about the current span and also for creating new and closing current spans. Trace context is always attached to a specific thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Singleton instance of class \texttt{TraceContextManager} is used for attaching the threads to the trace contexts and vice-versa. It has a few methods allowing us to attach trace context to a specific thread and also to get trace context which is attached to a current thread.
+Trace context is a class used for storing the information about the current span and also for creating new spans and closing current spans. Trace context is always attached to a specific thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Singleton instance of class \texttt{TraceContextManager} is used for attaching the threads to the trace contexts and vice-versa. It has a few methods allowing the developer to attach trace context to a specific thread and also to get trace context which is attached to a current thread.
 
-Each trace represented by a trace context is uniquely identified by \texttt{Universally unique identifier (UUID)} of type 1 is created. The version 1 of UUID combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that 2 traces created at the same time on different nodes can't have the same identifier. The identifiers are created using a C++ library called sole (https://github.com/r-lyeh/sole) in the native agent and are made available to the Java code via a published native method.
+Each trace represented by a trace context is uniquely identified by \texttt{Universally unique identifier (UUID)} of type one is created. This UUID version combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can't have the same identifier. The identifiers are created using a C++ library called sole (https://github.com/r-lyeh/sole) in the native agent and are made available to the Java code via a published native method.
 
-The trace contact has method \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span saver attached to the span and moves one level higher in the span hierarchy to the previous current span.
+The trace contact has method s\texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span saving operation on the used span saver and the parent span becomes the current span.
+
+The diagram \ref{fig:closing_spans} shows how spans are created, closed and saved.  in this chapter. \begin{figure}
+	\centering
+	\includegraphics[scale=0.6]{closing_spans.png}
+	\caption{Creating and closing spans.}
+	\label{fig:closing_spans}
+\end{figure}
 
 \section{Native Agent}
-The native agent is used for accessing the internal state of the monitored application and to instrument classes to allow us to attach the span and trace identifiers to classes transferred between the application nodes. 	The main task for the agent is to check weather a class is required to be instrumented and if yes, send the class for the instrumentation to the server and wait for the instrumented code.
+\label{native_agent_design}
+The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main agent task is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the instrumentation server and wait for the instrumented code.
 
 The native agent consist of several parts. The most important parts are:
 \begin{itemize}
-	\item \textbf{Bytecode parsing module}. The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Bytecode parsing is a technical task described in the following Implementation chapter.
+	\item \textbf{Bytecode parsing module}. The classes in this module are used to parse the JVM byte code in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]f{Implementation} chapter.
 	\item \textbf{InstrumentorAPI}. This class is provides several methods which are used to communicate with the instrumentor JVM. All the queries to the instrumentor are done via instance of this class.
 	\item \textbf{AgentCallbacks}. All callbacks used in the native agent are defined in this namespace.
 	\item \textbf{AgentArgs}.  This class contains all the logic required for argument parsing.
