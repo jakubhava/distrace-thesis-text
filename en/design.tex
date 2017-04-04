@@ -203,17 +203,11 @@ The native agent accepts several arguments which can be used to affect the agent
 
 \section{Instrumentation Server}
 \label{sec:inst_server}
+The instrumentation server is responsible for instrumenting the byte code received from the native agent in separated JVM and also acts as the base library for the instrumentation for specific applications. The developer extending the instrumentation server can use prepared method to define custom instrumentation points without touching the internals of the native agent.
 
-The instrumentation server also acts as the base library for the instrumentation for specific applications. Usually the user needs to have the code for instrumentation server available as a dependency and can use prepared method to define custom instrumentation points without touching the internals of the native agent.
+This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class being loaded is required to be instrumented. If yes, the server receives the byte code, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular it does not take track about the distributed traces. The information about traces is contained in the application's instrumented classes.
 
-The instrumentation server needs to deal with several technical problems. The main issue is that the classes which are about to be instrumented require all other dependent classes to be available as well. The other issue is for example instrumenting the classes with circular dependencies. The server also performs several optimizations to provide faster response to the agent such as caching the instrumented classes or minimizing the communication when possible. The technical aspects of the issues and the optimizations mentioned above are described in the following sections.
-
-
-The instrumentation server is responsible as the name suggest for instrumenting the byte code. The native agent asks the server weather the class is required to be instrumented, the server then received the byte code, performs the instrumentation and sends the data back to the agent. It does not contain any application state and does not know about the distributed traces.
-
-Instrumentation server is responsible the the code instrumentation in separated virtual machine then the application is running. In this section we cover several design aspects of the instrumentation server, leaving the implementation details on the following sections. As already mentioned, the server can run locally on each application node or it can be shared among all the application nodes. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework.
-
-The platform was designed to be configurable and deployment of instrumentation server is supported using two methods. The instrumentation server can be either on the network available to all the application nodes and can be shared by all applications. This has an advantage of caching the instrumented classes. So when any class is instrumented for the first time, the instrumentation is not performed for other nodes but the class is immediately sent. The disadvantage of this solution is higher latence between the agent and the instrumentation server since they are usually not on the same node. In this case the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the diagram \ref{fig:shared_server}.
+The platform was designed to be configurable and deployment of instrumentation server is supported via two approaches. The instrumentation server can be either on the network available to all the application nodes and can be shared by all applications. This has the advantage of caching the instrumented classes. So when any class is instrumented for the first time, it is saved and the instrumentation is not performed for other nodes but the class is immediately sent. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same node. In this case the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the diagram \ref{fig:shared_server}.
  
  \begin{figure}
  	\centering
@@ -222,7 +216,7 @@ The platform was designed to be configurable and deployment of instrumentation s
  	\label{fig:shared_server}
  \end{figure}
  
- The other deployment method is that the instrumentation server runs on each application node. This has the advantage of faster communication since we can use inter-process communication methods to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that we have to instrument all classes on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted on the diagram \ref{fig:separated_server}.
+ The other deployment method is that the instrumentation server runs on each application node. This has the advantage of faster communication since  inter-process communication is used to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted on the diagram \ref{fig:separated_server}.
  
  \begin{figure}
  	\centering
@@ -231,88 +225,87 @@ The platform was designed to be configurable and deployment of instrumentation s
  	\label{fig:separated_server}
  \end{figure}
 
-
 Except from the cached classes, the server does not contain any application state and it just reacts to the agent requests. It can accept four type of requests:
 \begin{itemize}
 	\item Request for code instrumentation.
 	\item Request for storing byte code for a class on the server.
-	\item Request for sending dependency classes needed by the agent
+	\item Request for sending all helper classes needed by the agent such as the \texttt{Span} class or \texttt{TraceContext} class.
 	\item Request to check whether the server contains specific class or not.
 \end{itemize}
 The server interacts in more ways with the agent, however they are just sub-parts of the communication initiated by one of these 4 request types.	
 
+The instrumentation server needs to deal with several technical problems. The main issue is that the classes which are about to be instrumented require all other dependent classes to be available. The other issue is instrumenting the classes with circular dependencies. The server also performs several optimizations to provide faster response to the agent such as caching the instrumented classes or minimizing the communication when possible. The technical aspects of these issues and the optimizations mentioned above are described in the following sections.
 \subsection{Instrumentation}
-The instrumentation of the class is triggered by the agent and it's done in 2 stages. The first stage informs the client whether the class is already on the instrumentation server or not. The second stage is the instrumentation itself. The first stage is initiated by the agent who asks the server whether the class is available on the server or not. The server performs this check in 3 phases:
+The instrumentation of the class is triggered by the agent and it's done in two stages. The first stage informs the client whether the class is already on the instrumentation server or not. The second stage is the instrumentation itself. The first stage is initiated by the agent. The server performs the check for class availability in 3 phases:
 \begin{enumerate}
-	\item Check whether the instrumented bytecode for this class is available
-	\item If not, check wether the original bytecode for this class is available
-	\item If not, check if we can load the class using our context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the application classes on the instrumentation server classpath. 
+	\item Check whether the instrumented byte code for this class is available.
+	\item If not, check whether the original byte code for this class is available.
+	\item If not, check if the class can be loaded using the server's context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the application classes on the instrumentation server classpath for optimization reasons.
 \end{enumerate}
 
-The server informs the client if it does not have the class, the agent sends the class and the server registers the received byte-code under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
-The second stage follows the first stage immediately the first one. If the server already contains the instrumented class in the cache, it sends it right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
+The server informs the agent if it does not have the byte code for the class available and in that case  the agent sends the class to the server. The server registers the received byte-code under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
+The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the instrumented class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
 
-The code instrumentation is handled by \texttt{CustomAgentBuilder }and \texttt{BaseAgentBuilder} classes.
-The instrumentation server expects instance of \texttt{CustomAgentbuilder} on the input of its start method. This is abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToGeneratedClasses)} where the builder is wrapper around the Byte Buddy \texttt{AgentBuilder} class which is used to define the class transformers.
+The code instrumentation is handled by \texttt{CustomAgentBuilder} and \texttt{BaseAgentBuilder} classes.
+The instrumentation server expects instance of \texttt{CustomAgentbuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToGeneratedClasses)} where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class which is used to define the class transformers.
 
-The user needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors which are less verbose then the standard Byte Buddy approaches.
+The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors which are less verbose then the standard Byte Buddy approaches.
 
-Each created transformer has to have associated some interceptor which defines the instrumented code. Each interceptor has to implement \texttt{Interceptor}  interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the sever. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated jar in a same way as it the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface.
+Each created transformer has to have associated `n interceptor which defines the code to be injected. Each interceptor implementation has to implement \texttt{Interceptor}  interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface.
 
-Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation happens exactly as desired. The class implements for 4 byte buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
+Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation happens exactly as desired. The class implements four Byte Buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
 \begin{itemize}
-	\item \texttt{onTransformation} listener is called immediately before the class is instrumented. Our implementation of the listener also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
+	\item \texttt{onTransformation} listener is called immediately before the class is instrumented.  Implementation of the listener in the thesis also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
 	\item \texttt{onIgnored} listener is called when the class is not instrumented. The class is not instrumented when the user does not define any transformer for the specified class.
 	\item \texttt{onError} listener is called when some exception occurred during the instrumentation.
-	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners
+	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners.
 \end{itemize}
 
+Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is overridden in the child class. The dependencies are all the classes specified in the class file such as type of the methods return value or arguments, super class or implemented interfaces. 
+By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw byte code of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network, custom \texttt{InstrumentorClassloader} class loader is used to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
 
+However, Byte Buddy internal API does not work with raw byte code for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and created instance contains metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second class is used for caching the type descriptions so they are not created every time the class is accessed. 
 
-Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is override in the child class. The dependencies are all the classes specified in the class file such as type of return value, arguments, super class or interfaces. 
-By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw byte code of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network we use our \texttt{InstrumentorClassloader} to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
-
-However, Byte Buddy internal API does not work with raw byte code for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and contains the metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second one class is used for caching the type descriptions so they are not created every time the class is accessed. 
-
-So in overall, class lookup is done in the following 2 steps:
+So in overall, class lookup is done in the following two steps:
 \begin{enumerate}
-	\item Check whether type description for the class is available. If yes, load the description from the cache.
-	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for it and put it on the cache
+	\item Check whether type description for the class is available. If yes, load the type description from the cache.
+	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for the class and put it in the cache.
 \end{enumerate}
 
 \subsection{Custom Service Loader}
-In order to keep the instrumentation extendable we use concept of service loaders for loading the extensions. This is done for 2 types:
+In order to allow the developer to extend the base instrumentation library service loaders for loading the extensions are used. The service loader is used used for two types: 
 \begin{itemize}
-	\item Custom span savers. Each span saver inherits from the abstract class \texttt{SpanSaver}
-	\item Custom Interceptors. Each interceptor implements the interface \texttt{Interceptor}
+	\item Custom span savers. Each span saver inherits from the abstract class \texttt{SpanSaver}.
+	\item Custom Interceptors. Each interceptor implements the interface \texttt{Interceptor}.
 \end{itemize} 
-The user can create custom span savers and interceptors by either inheriting the desired class or implementing the required interface and put the name of the class inside the text file in the META-INF directory in the JAR file. The text file has to have the name of the abstract class or the interface the implementation is for. For example, when user creates a new Interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} has to \textbf{x.y.InterceptorA}.
+The user can create custom span savers and interceptors by either inheriting the desired class or implementing the required interface and put the name of the class inside the text file in the META-INF directory in the JAR file. The text file has to have tha same name as the abstract class or the interface the implementation is for. For example, when user creates a new Interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} in the META-INF folder has to contain line \textbf{x.y.InterceptorA}.
 
-Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as we need to have the \texttt{Class} object representing the class available. Therefore a custom service loader was created for this purpose. This loader works in very similar way as the standard Java one, but instead of returning the instances of loaded services it just returns loaded service classes. 
+Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it's only required to obrain \texttt{Class} object representing the available implementation. Therefore a custom service loader was created for this purpose. This loader works in very similar way as the standard Java one, but instead of returning the instances of loaded services it just returns classes of available services. 
+
 \subsection{JSON Generation}
-The spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
+The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
 
-The JSON handling is based on the https://github.com/ralfstx/minimal-json library, however we created custom simplified implementation which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
+The JSON handling is based on the https://github.com/ralfstx/minimal-json library, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
 
-This JSON support is designed using several classes:
+This JSON support is designed via several classes:
 \begin{enumerate}
 	\item \textbf{JSONValue}. The abstract ancestor of all JSON types. This type defines common methods to all implementation.
 	\item \textbf{JSONString}. Class representing the string type.
-	\item \textbf{JSONNumber}. Class representing the number type.
+	\item \textbf{JSONNumber}. Class representing the numeric types.
 	\item \textbf{JSONLiteral}. Class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
 	\item \textbf{JSONArray}. Class representing the JSON arrays. It has support for adding new elements into the array.
 	\item \textbf{JSONObject}. Class representing the JSON objects. It has support for adding a new items in the object.
 \end{enumerate}
 
-Each \textbf{JSONValue} can be printed as valid JSON string and the printing is driven by a class \texttt{JSONStringBuilder}. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
+Each \textbf{JSONValue} can be printed as valid JSON string where the printing is driven by\texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
 
 \section{User Interface}
-The user interface connects the spans collected from different nodes using the span and parent span ids which means we can see the distributed traces graphically and see how the computation went node by node. For the purpose of this tool, Zipkin User Interface is used for this purpose since it's open source and fulfills exactly the required service. However as mentioned above, the users can write custom span savers to save the data in a format known to different user interface in order to not depend on Zipkin UI.
-
-The thesis is using Zipkin as default user interface. The default data format for exporting spans is build in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span saver class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
 \label{sec:zipkin_ui}.
 
-The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface that the data for a single span can be sent incrementally. This means that we can send several JSONs representing the same span with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow us to to send part of data from the sender side and part of data from the receiver site right to the user interface instead of sending the data back on forth to send them as one single complete span.
+The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow the tool to send part of data from the sender side and part of data from the receiver side directly to the user interface instead of sending the data back on forth to send them as one single complete span.
+
+The thesis is using Zipkin as default user interface. The default data format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span saver class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
+
 
 \begin{figure}
 	\centering
@@ -321,7 +314,7 @@ The user interface receives spans and presents them in a hierarchical way so the
 	\label{fig:zipkin_ui}
 \end{figure}
 
-Each span in the UI is clickable and all the additional information can bee seen at that level. In this thesis we collect stack trace at each span for monitoring purposes. Example of such information screen can be seen on the figure \ref{fig:zipkin_ui_detail}.
+Each span in the UI is clickable and all the additional information can bee seen at that level. In this thesis the stack trace are also collected at each span for monitoring purposes. Example of such information screen can be seen on the figure \ref{fig:zipkin_ui_detail}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.4]{zipkin_ui_detail.png}
@@ -329,27 +322,27 @@ Each span in the UI is clickable and all the additional information can bee seen
 	\label{fig:zipkin_ui_detail}
 \end{figure}
 \subsection{Zipkin Data Model}
-Zipkin requires the data to be sent in JSON format. Requests to UI are sent as JSON arrays where the array elements are the spans them selfs. Zipkin understands the following fields of Span object:
+Zipkin requires data to be sent in JSON format. Requests to UI are sent as JSON arrays where the array elements are the spans. Zipkin understands the following fields of Span object:
 \begin{itemize}
 	\item \textbf{traceId} - unique id representing the complete trace. It can be either 128 or 64 bit long.
 	\item \textbf{name} - human readable span name
 	\item \textbf{id} - id of this span. At the current implementation, Zipkin UI supports span ids only to be 64-bit long.
 	\item \textbf{parentId} - parent id of the current span.
 	\item \textbf{timestamp} - the time when the span was created.
-	\item \textbf{duration} - the duration of the span. It is the time from the creating the span until closing the span.
-	\item \textbf{annotations} - array containing standard Zipkin annotations. These annotations can be handled by user interface in specific way since the user interface is understands the meaning of the content. The documentation specifies the following annotations:
+	\item \textbf{duration} - the duration of the span. It is the duration between the span creation and span closing.
+	\item \textbf{annotations} - array containing standard Zipkin annotations. These annotations can be handled by user interface in specific way since the user interface understands the meaning of the content. The documentation specifies the following annotations:
 	\begin{itemize}
 		\item \textbf{cr} : timestamp of client receiving the span
 		\item \textbf{cs} : timestamp of client sending the span
-		\item \textbf{sr} : timestamp of server reciving the span
+		\item \textbf{sr} : timestamp of server receiving the span
 		\item \textbf{ss} : timestamp of server receiving the span
 		\item \textbf{ca} : client address
 		\item \textbf{sa} : server address
 	\end{itemize}
-	\item \textbf{binaryAnnotations} - array of custom annotations. For example collected stack trace is send as a binary annotation.
+	\item \textbf{binaryAnnotations} - array of custom annotations. For example collected stack traces are sent as a binary annotation.
 \end{itemize}
 
-Except the \textit{annotations} and \textit{binaryAnnotations} fields, the fields are of simple string or number type. Annotations are objects with the 3 fields - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port at the code where the span or particular annotation was recorded. Endpoints can also specify service name which may be used to search for particular spans.
+Except the \textit{annotations} and \textit{binaryAnnotations} fields, the fields are of simple string or number type. Annotations are objects with the three fields - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port at the code where the span or particular annotation was recorded. Endpoints can also specify service name which may be used to search for particular spans.
 
 Full example of data sent to Zipkin can be:
 \begin{lstlisting}[emph={traceId, name, id, timestamp, duration, annotations, value, endpoint, serviceName, ipv4, port, binnaryAnnotations, key},emphstyle={\textbf}]
