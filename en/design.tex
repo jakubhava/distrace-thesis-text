@@ -37,6 +37,7 @@ The graph \ref{fig:architecture} denotes the basic relationships between the maj
 
 \section{Example Use Case}
 TODO: write proper small example!
+
 In order to have a better understanding how this platform can be used we provide simple example of client-server application as an use-case, so far without the code. Clients query the server and server provides them with the response. We would like to instrument the client and the server and monitor the communication between the client and the server.
 
 Because client and the server are different applications, we need to create 2 different instrumentation servers and specify what is the method and a class which is required to be instrumented and what should happen in the instrumented code. In this case we just want to add custom annotations to recorded spans which are specific to the client-server communications.
