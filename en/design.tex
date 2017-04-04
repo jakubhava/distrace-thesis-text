@@ -82,10 +82,6 @@ Span saver implementations need to extend from the abstract ancestor defining co
 	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span saver. Each span saver is responsible for parsing the span saver arguments.
 \end{itemize}
 
-TODO: diagram of zipkin span saver - json format
-TODO: diagram of span saver used with the custom data collector - json format
-TODO: diagram of custom span saver
-
 As mentioned above, the tool provides two default simple span savers:
 \begin{itemize}
 	\item  \texttt{DirectZipkinSaver} - The default span saver sends the collected span  asynchronously to the user interface right away without storing the data on disk to be collected by an external data collector. In this case the functionality of the span saver and the data collector are handled by this single saver. This span saver should be used for demonstration purposes only since it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
