@@ -36,15 +36,121 @@ The graph \ref{fig:architecture} denotes the basic relationships between the maj
 \end{figure}
 
 \section{Example Use Case}
-TODO: write proper small example!
+In order to demonstrate the use case for which this architecture is a good fit, a simple architecture is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as a different threads in a single applications or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the computation module. This module performs the computation and sends the data to the exporter module which saves the data on disk and informs the client of the task completion. The architecture of the example can be seen on the figure \ref{fig:example_arch}.
 
-In order to have a better understanding how this platform can be used we provide simple example of client-server application as an use-case, so far without the code. Clients query the server and server provides them with the response. We would like to instrument the client and the server and monitor the communication between the client and the server.
+The goal is to be able to discover how long the transfers between different modules last and how long the processing on each module last. It is also assumed that the platform does not collect this information already otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
 
-Because client and the server are different applications, we need to create 2 different instrumentation servers and specify what is the method and a class which is required to be instrumented and what should happen in the instrumented code. In this case we just want to add custom annotations to recorded spans which are specific to the client-server communications.
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.5]{example_arch.png}
+		\caption{Example architecture.}
+		\label{fig:example_arch}
+	\end{figure}
 
-The native agent has to be attached to both the client and the server prior it's start and the path to the instrumentation server jar needs to be set on both client and server to corresponding server. The default span sever is used in this case and the collected spans are send right to the Zipkin UI. The default endpoint for the user interface is used when not defined as an argument to the native agent.
 
-We can see that the only part the user needs to worry about is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of the work is done automatically.
+
+\begin{itemize}
+\item \textbf{The client:}
+\begin{lstlisting}[language=Java]
+public acceptTask(Task task){
+  preprocessTask(task)
+  ...
+  sendTaskForComputation(task)
+  ...
+  waitForExporterToFinish()
+  ...
+}
+\end{lstlisting}
+
+\item \textbf{The executor:}
+\begin{lstlisting}[language=Java]
+public execute(Task task){
+  TaskResult result = executeTask(task)
+  ...
+  sendResultForVisuzalization(result)
+}
+\end{lstlisting}
+
+\item \textbf{The exporter:}
+\begin{lstlisting}[language=Java]
+public export(TaskResult result){
+  saveToDatabase(result)
+  ...
+  notifyClient()
+}
+\end{lstlisting}
+\end{itemize}
+
+In order to be able to collect this type of information and be able to reason about the relationship between the nodes, these methods needs to be instrumented. The instrumented code should look as in the schematic code bellow. For achieving this, the developer is supposed to extend the instrumentation server which acts as the base library and provides the developer with several helper methods used to specify the instrumentation points for their applications. 
+
+\begin{itemize}
+\item \textbf{The instrumented client:}
+\begin{lstlisting}[language=Java]
+public acceptTask(Task task){
+  Inst.openSpan(task)
+  Inst.currentSpan().addAnnotation("tskReceived", timestamp)
+  ...
+  preprocessTask(task)
+  Inst.currentSpan().addAnnotation("tskPreprocessed", timestamp)
+  ...
+  sendTaskForComputation(task)
+  ...
+  waitForExporterToFinish()
+  ...
+  Inst.closeCurrentSpan()
+}
+\end{lstlisting}
+The \texttt{Inst.openSpan} opens a new span, attaches it to the current thread and also attaches the span information to the task object which is passed around the network. In this case, the method actually creates a new trace tree since it's always start of the monitored communication. The \texttt{addAnnotation} is used to add application specific information to the monitored span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span saver. In the default case, the data are sent to the user interface directly.
+
+
+\item \textbf{The instrumented executor:}
+\begin{lstlisting}[language=Java]
+public execute(Task task){
+  Inst.openSpan(task)
+  TaskResult result = executeTask(task)
+  Inst.injectCurrentSpan(result)
+  ...
+  sendResultForExport(result)
+  Inst.closeCurrentSpan()
+}
+\end{lstlisting}
+In this case, the \texttt{openSpan} method gets the span information from the task object and attaches it to the current thread. The newly introduced method \texttt{injectCurrentSpan} is used to inject span information from the current thread to a new object.
+
+\item \textbf{The instrumented exporter:}
+\begin{lstlisting}[language=Java]
+public export(TaskResult result){
+  Inst.openSpan(result)
+  saveToDatabase(result)
+  ...
+  notifyClient()	
+  Inst.closeCurrentSpan()
+}
+\end{lstlisting}
+In this case, the meaning of the methods is the same as above.
+
+\end{itemize}
+
+The developer should extend the base instrumentation server by steps how to instrument the classes  in order to have a similar format as above. The extended instrumentation server is described on the figure \ref{fig:example_extended}.
+
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.5]{example_extended.png}
+		\caption{Structure of extended instrumentation server JAR.}
+		\label{fig:example_extended}
+	\end{figure}
+
+The extended instrumentation server is then run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of distributed application prior it's start and the path to the extended instrumentation server JAR needs to be set as an mandatory argument. The default span sever is used in this case and the collected spans are send right to the Zipkin UI. The default endpoint for the user interface is used when not defined as an argument to the native agent. 
+
+A single collected trace from this application should look as shown on the figure \ref{fig:example_trace}.
+
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.5]{example_trace.png}
+		\caption{Example trace in case of the example application.}
+		\label{fig:example_trace}
+	\end{figure}
+
+Therefore, it can be seen that the only part the developer needs to work with is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of the work is done automatically. The end user is only responsible for starting the application with the agent attached.
 
 \section{Spans and Trace Trees}
 \label{subsec:spans}
