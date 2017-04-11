@@ -25,10 +25,29 @@ instances and therefore their defining class has to be available in the applicat
 The auxiliary classes are classes created at run-time during the instrumentation on the server and have to be available on the applications machine as well. This is achieved by loading the byte code for the auxiliary class, saving the the class as a java class file on the disk and making it available by adding the class on the application's class path.
 
 \subsection{Byte Code Parsing}
-explain byte code structure
+Byte code parsing is necessary feature of the thesis and is required in order to be able to get the list of dependent classes on a class currently being loaded. No sufficient C++ implementation has not been found and therefore a custom parsing module has been implemented. The parsing module is based on the Apache Commons BCEL Java package and the simplified version but still with the same logic has been rewritten to C++.
 
-\section{Instrumentation Server}
-\subsection{Byte-Code Instrumentation}
-\subsection{Transformers and Estimators}
-\section{Zipkin Integration}
-\subsubsection{Sending Data to Zipkin}
+The main class used for parsing is \texttt{ClassParser} which contains \texttt{parse} method accepting the byte code of a class and defines also several accessors  for the parsed data such as the super class name and complete reference, list of all implemented interfaces, list of all methods or list of all defined fields and their types.
+
+The byte code starts with the several important parts:
+\begin{itemize}
+	\item \textbf{Magic id}. Magic id is a first integer stored in each byte code and contains  always 0xCAFEBABE number.
+	\item \textbf{Version}. This part contains actually two shorts, where the first short represents minor Java version and the later one represents major Java version.
+	\item \textbf{Constant pool}. Constant pool is a table representing class and interface names, field names and also other important constants. It contains mapping from id representing the type to the fully qualified type name.
+	\item \textbf{Class Info}. Class information contains the information whether the byte code represents a class or an interface, denotes class name and also super class name.
+	\item \textbf{Interfaces}. This part contains the number of interfaces this class implements followed by id of type short of each interface. The interface can be looked up using the class pool.
+	\item \textbf{Fields}. This part of the byte code contains the number of fields this class defines together with some additional information for each defined field.
+	\item \textbf{Methods}. This part contains the number of defined methods in the byte code together wit additional information per each method such as the number of arguments.
+\end{itemize}
+More information about class file structure can be found at https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html. 
+Each part of the class file mentioned above is parsed separately. For accessing the raw byte code a \texttt{ByteReader} class is used. It contains methods fro reading different types of data from the byte code array. 
+
+Parsing the magic id and both minor and major versions is straightforward as their are just numbers and can be read using the byte reader class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. The constant can be of several type such as constant representing the Class symbol, String symbol, Method types of Field types for example. Once the Constant pool is parsed, it can be queried for the specific symbol by its id. Class name and super class name, interfaces, fields and methods are read from the constant pool by using their ids.
+\section{Span Injection on Instrumentation Server}
+This short section explains how additional fields such as the span information are internally attached to the instrumented classes. The trace information is attached to the instrumented class by adding a new synthetic field with name \texttt{\_\_\_\_traceId}. This trace id represents the current trace and is used in the code to obtain reference to a current trace context and also current span.  A new field is created using the Byte Buddy instrumentation builder using the \texttt{defineField} method.
+\section{Determine the Current Span Saver}
+This section explains how span saver type and also other arguments passed to the native agent are made accessible to the instrumentation saver. The span saver type is defined as part of the native agent and needs to be used at the instrumentation server as well. This is achieved by creating and registering the native method to a class which is defined as part of the instrumentation server.
+In span saver case, the abstract class \texttt{cz.cuni.mff.d3s.distrace.storage.SpanSaver} is defined at the instrumentation server and contains also native agent for getting the span saver type. The abstract \texttt{SpanSaver} class is sent to the native agent during the initialization phase. When this class is used for the first time, the native method implementation is bound to the method \texttt{getSpanSaverType} defined in the \texttt{SpanSaver} class. Therefore, even the the classes defined as part of the instrumentation server can use method defined on the native agent with a really small overhead. Actually there may be a performance gain since these methods are written as native methods.
+
+
+
