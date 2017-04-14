@@ -175,6 +175,22 @@ Each annotation, both binary and regular, has also endpoint information attached
 	\item \textbf{service name} - service name which is used to group different traces by names and can be later used to filter traces using this field in the user interface.
 \end{itemize}
 
+It is also important to mention that span id and parent span id are created randomly. This is done in order to allow parallel spans in the same control flow without overlapping as can be seen on the figure \ref{fig:parallel_spans}.
+
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.6]{parallel_spans.png}
+		\caption{Generating span ids randomly ensures that they don't overlap when they are created in parallel.}
+		\label{fig:parallel_spans}
+	\end{figure}
+If the ids were not random, the parallel spans would be creating spans with ids in the same linear sequence and therefore these spans would be overlapping as can be seen on the figure \ref{fig:parallel_spans_overlapping}
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.6]{parallel_spans_overlapping.png}
+		\caption{Generating span with the same linear sequence leads to span overlapping.}
+		\label{fig:parallel_spans_overlapping}
+	\end{figure}
+	
 The following sections contains information about how spans are exported for external communication with the user interface and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
 \subsection{Span Savers \& Data Collectors}
 Spans are exported from the application using the span savers. Span saver for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span saver is static field of the \texttt{Span} class. Span savers need to be available to the monitored application and therfore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
