@@ -363,7 +363,7 @@ Service loader is used to load specific service providers at run-time. The group
 \texttt{Impl1}  \newline
 \end{center}
 Service loaders can therefore be used to extend the application capabilities without changing the source code. When a new implementation of the service should be supported, it just needs to be registered inside the META-INF folder and the application will automatically use the new service provider together with the rest of the defined service providers defined earlier.
-\section{Logging libraries}
+\section{Logging Libraries}
 One of the key aspects of the developed platform is low-overhead. Logging can have negative effect on the performance of the application but sometimes it's necessary to have information from various application runs to be able to locate bugs or discover wrong configuration. Since one of the thesis's requirements is low-overhead, the selection of logging library is important for the performance of the thesis as well. 
 
 Spdlog is a written in C++11, fast, header only logging library on which this project is based on. It allows both synchronous and asynchronous logging and custom message formatting.

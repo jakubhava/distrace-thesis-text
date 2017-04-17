@@ -8,7 +8,7 @@ This thesis tries to overcome some of the limitations of the relevant monitoring
 \hyperref[zipkin]{OpenZipkin} is stable open-source tracing system. Zipkin creates several pre-instrumented libraries which may be used at the monitored application to communicate with the Zipkin backed. These libraries try to minimize the amount of code changes in application sources, however the user is still required to change the application source code to add custom annotations or change the default tracing mechanism. The similar holds for very similar tool developed by Cloudera, \hyperref[htrace]{HTrace}. These tools also perform the instrumentation in the same JVM (Java Virtual Machine) where the application is running which can have performance impact on the application itself.
 
 The tool proposed by this thesis tries to address these problems and find solutions how applications can be instrumented without the need of changing the source code and have the minimal performance impact on the running application. It however shares the same concepts as \textit{Span} and\textit{ Distributed traces} with the mentioned platforms.
-\section{Requirement - Small Footprint and High Performance}
+\section{Small Footprint and High Performance}
 The mentioned cluster monitoring tools can affect the application performance and memory consumption since they perform instrumentation in the same virtual machine as the monitored application. One of the thesis requirements is to have  a minimal footprint on the monitored application.
 
 Since the instrumentation is a core functionality of the system it directly affects the performance of the application. Different instrumentation methods are described in the following few paragraphs to give the reader insights into how each method can affect the application's performance. Two standard ways of instrumentation exist - using the native or Java agent and the advantages and disadvantages of these two approaches are discussed here together with the arguments for the final solution which is actually a compromise of the both techniques.
@@ -50,7 +50,7 @@ The other alternative solution was based on the idea of running multiple Java Vi
 The selection of the tool used for the communication between the native agent and the instrumentation server was also important decision and \hyperref[nanomsg]{NanoMsg} has been chosen. It hides the platform specific aspects of sockets comparing to \hyperref[raw_sockets]{Raw Sockets} approach. It has also several performance benefits and general improvements over the well-known \hyperref[zeromq]{ZeroMq} library such as the better threading and more sophisticated implementation of the zero-copy technique. The mappings of this library for Java and C++ languages mentioned in the \hyperref[nanomsg]{Nanomsg} section were also perfect fit into the tool.
 		
 
-\section{Requirement - Application-Level \newline Transparency and Universality}
+\section{Application-Level \newline Transparency and Universality}
 On of the most important goals of the thesis is to achieve high level of application transparency while ensuring the tool universality. Each of these two requirements directly affects the second one and therefore the compromise between these two has been found.
 
 
@@ -70,19 +70,19 @@ The figure \ref{fig:extending_core} represents the application's architecture.
 \end{figure}
 
 
-\section{Requirement - Easiness of Use}
+\section{Easiness of Use}
 This requirement is highly connected to the previous one. The easiness of use is also important goal of the application. The usage of the core monitoring system is separated into two user groups, developers and end users. The goal is to not require from the end user to know the internal structure of the application and the monitoring platform. This is achieved by assuming that the developer who is responsible for extending the library can handle this technicalities. The user is supposed to work with the user interface and to read the results of the monitoring run. 
 
 However, it is also goal of this thesis to ensure that the developer responsible for extending the core monitoring tool needs to write as less code as possible and does not need to have a deep knowledge about the JVM internals or application byte-code. This is also the reason why Java-language and Byte Buddy library were used for the instrumentation in the instrumentation server. Byte buddy library provides several very concise ways how to define the application-specific instrumentation. To shield the developer from the internals, all low-level core code is hidden from the developer in the native agent which is universal to all Java applications and the developer is not supposed to change the code of it.
 
-\section{Requirement - Easiness of Deployment}
+\section{Easiness of Deployment}
 In order to ensure the easiness of deployment the number of artifacts used in the thesis should be as low as possible. Also the application should have understandable and relatively small configuration so the users can effectively set up the application for their desired needs. 
 
 Based on the discussion in the previous sections, the tool should have only two final artifacts - the universal native agent and the core monitoring server which is supposed to be extended by the application developer for specific application needs.
 
 The deployment of this tool should be also simplified at certain use-cases by starting the application-specific instrumentation server automatically from the native agent. In most cases, the user should only specify the server location and attach the native agent to the application. Several deployment strategies exist and are discussed later in the thesis.
 
-\section{Requirement - Modularity}
+\section{Modularity}
 It is the also goal of the thesis to allow the user to replace some of the default application modules of the whole platform by specific custom modules without the need of rewrite the complete application.
 
 The extendable modules should be the interface presenting the observed data and the collectors bringing the data from the application nodes to the user interface. Whilst default implementation are available in the thesis, the users have the possibility tu plug-in custom user interface or more advanced data collectors. The modules have to met some specific criteria in order to replace the default implementations, however the core implementation is let up on the user. 

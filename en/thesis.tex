@@ -48,7 +48,6 @@
 \graphicspath{ {../img/} }
 \usepackage{listings}
 \lstset{columns=flexible}
-
 %%% Basic information on the thesis
 
 % Thesis title in English (exactly as in the formal assignment)
@@ -81,17 +80,17 @@
 % An optional dedication: you can thank whomever you wish (your supervisor,
 % consultant, a person who lent the software, etc.)
 \def\Dedication{%
-I would like to thank my thesis supervisor RNDr. Pavel Parízek, Ph.D for leading me throughout the whole thesis and willing to help with any concerns I've ever had. I would also like to thank H2O.ai for being able to write this thesis under their coordination, particularly RNDr. Michal Malohlava, Ph.D for providing very useful technical advice.
+I would like to thank my thesis supervisor RNDr. Pavel Parízek, Ph.D for leading me throughout the whole thesis and willing to help with any concerns I've ever had. I would also like to thank H2O.ai for being able to write this thesis under their coordination, particularly to RNDr. Michal Malohlava, Ph.D for providing very useful technical advice.
 }
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-The main goal of this the is to create a monitoring platform and library which can be used to monitor distributed Java-based applications. This work is based on Google Dapper and shares a concept called "Span" with it. Spans are used to capture state among multiple communicating hosts. In order to be able to collect spans without recompiling the original application's code, instrumentation techniques are highly used in the thesis. The thesis consists of two parts: the native agent and instrumentation server. The users of this platform is supposed to extend the instrumentation server and specify the points in their application's code where new spans should be created and closed. In order to achieve high performance and affect the running application at least as possible, the instrumentation server is used for instrumenting the code. All classes marked for instrumentation are sent to the server which alters the byte code and caches the changed byte-code for the future instrumentation requests from other nodes.
+The main goal of this thesis the is to create a monitoring platform and library that can be used to monitor distributed Java-based applications. This work is inspired by Google Dapper and shares a concept called "Span" with it. Spans represents a small specific part of the computation and  are used to capture state among multiple communicating hosts. In order to be able to collect spans without recompiling the original application's code, instrumentation techniques are highly used in the thesis. The monitoring tool, which is called Distrace, consists of two parts: the native agent and instrumentation server. Users of this platform are supposed to extend the instrumentation server and specify the points in their application's code where new spans should be created and closed. In order to achieve high performance and affect the running application at least as possible, the instrumentation server is used for instrumenting the code. The tool is aimed to have a small foot-print on the monitored applications, should be easy to deploy and is transparent to target applications from the point of view of the final user.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
 \def\Keywords{%
-{monitoring} {cluster} {instrumentation}
+{monitoring}, {cluster}, {instrumentation}, {distributed systems}, {performance}
 }
 
 %% The hyperref package for clickable links in PDF and also for storing
@@ -111,7 +110,7 @@ The main goal of this the is to create a monitoring platform and library which c
 \include{title}
 
 %%% A page with automatically generated table of contents of the master thesis
-
+\setcounter{tocdepth}{1}
 \tableofcontents
 
 %%% Each chapter is kept in a separate file
