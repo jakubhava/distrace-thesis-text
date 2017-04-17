@@ -5,6 +5,7 @@ This chapter describes design of the whole platform in details, however implemen
 Spans and their format are described next followed by design of the native agent and instrumentation server. This chapter ends by describing the used Zipkin user interface and also JSON format in which the user interface accepts the data from the instrumentation server. 
 
 \section{Overview}
+\label{design:overview}
 Main purpose of this tool is to collect distributed traces. In order to achieve that, the thesis is based on the concept of Spans. Spans are used to denote some specific part of the communication between the communicating nodes and are the important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication where a span inside the trace represents usually a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within this span create new nested spans. Created spans can be processed using different span savers and can be send to the user interface using various data collectors. 
 
 Spans are processed using Span Savers. Span savers are used to save spans in desired format on disk or on the network for further data collection and collected data are used for Spans visualizations in the user interface. The user interface receives the spans from the span savers or data collectors and present them to the user in a form of trace trees.
@@ -36,6 +37,7 @@ The graph \ref{fig:architecture} denotes the basic relationships between the maj
 \end{figure}
 
 \section{Example Use Case}
+\label{design:use_case}
 In order to demonstrate the use case for which this architecture is a good fit, a simple architecture is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as a different threads in a single applications or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the computation module. This module performs the computation and sends the data to the exporter module which saves the data on disk and informs the client of the task completion. The architecture of the example can be seen on the figure \ref{fig:example_arch}.
 
 The goal is to be able to discover how long the transfers between different modules last and how long the processing on each module last. It is also assumed that the platform does not collect this information already otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
