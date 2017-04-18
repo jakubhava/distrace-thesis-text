@@ -265,7 +265,7 @@ Usually when transferring the trace context between the threads on the same node
 	\item \texttt{getCopyWithoutAttachFrom} - this method obtains a deep copy of trace context from the carrier object without attaching it to the current thread. It is used in cases where child spans are processes for example in parallel by multiple threads. In this case, the copy of trace context with the same ID is shared among all these threads but they operate on very own object. This is done in order to avoid different traces between the spans when processing by multiple threads.
 	\item \texttt{attachOn(carrier)} - this method attaches the trace context on the carrier object without creating it and attaching it to the current thread.
 \end{itemize}
-
+There are also different variants how spans can be closed. Span can either closed by the same node or thread who created it. This is a simple situation and usually the methods attaching the trace context to the current thread are sufficient. It is also however possible that span can be closed by different threads or nodes then where they were initially created. In this case the copy of a trace context is usually created and attached to an object which acts as an carrier of the trace information.
 \section{Native Agent}
 \label{native_agent_design}
 The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main agent task is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the instrumentation server and wait for the instrumented code.
