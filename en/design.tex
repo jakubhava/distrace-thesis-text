@@ -258,12 +258,15 @@ The diagram \ref{fig:closing_spans} shows how spans are created, closed and save
 In order to capture the shared state between the nodes in the application or even between the threads on the same application node, the span details and trace context have to be transferred between the threads or between the nodes. Distrace prepares several methods for attaching trace context to either current thread or an object which acts as an carrier of the span information.
 
 Usually when transferring the trace context between the threads on the same node the copies of the trace context have to be used. When transferring the trace context between the different nodes this is not an issue.
+
+The method the developer can used for obtaining and attaching the trace context are:
 \begin{itemize}
 	\item \texttt{createAndAttachTo(carrier)} - this method creates the trace context and attaches it to the carrier object and current thread. This method is usually used just once at at the time of trace creation.
 	\item \texttt{getAndAttachFrom(carrier)} - this method obtains the trace context from the carrier object and attaches it to the current thread. 
 	\item \texttt{getWithoutAttachFrom} - this method obtains the trace context from the carrier object without attaching it to the current thread.
 	\item \texttt{getCopyWithoutAttachFrom} - this method obtains a deep copy of trace context from the carrier object without attaching it to the current thread. It is used in cases where child spans are processes for example in parallel by multiple threads. In this case, the copy of trace context with the same ID is shared among all these threads but they operate on very own object. This is done in order to avoid different traces between the spans when processing by multiple threads.
-	\item \texttt{attachOn(carrier)} - this method attaches the trace context on the carrier object without creating it and attaching it to the current thread.
+	\item \texttt{attachOnObject(carrier)} - this method attaches the current trace context on the carrier object without creating it and attaching it to the current thread.
+	\item \texttt{attachOnThread} - this method attaches the current trace context to the current thread.
 \end{itemize}
 There are also different variants how spans can be closed. Span can either closed by the same node or thread who created it. This is a simple situation and usually the methods attaching the trace context to the current thread are sufficient. It is also however possible that span can be closed by different threads or nodes then where they were initially created. In this case the copy of a trace context is usually created and attached to an object which acts as an carrier of the trace information.
 \section{Native Agent}
