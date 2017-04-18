@@ -177,6 +177,7 @@ Each annotation, both binary and regular, has also endpoint information attached
 	\item \textbf{service name} - service name which is used to group different traces by names and can be later used to filter traces using this field in the user interface.
 \end{itemize}
 
+\subsection{Span IDs}
 It is also important to mention that span id and parent span id are created randomly. This is done in order to allow parallel spans in the same control flow without overlapping as can be seen on the figure \ref{fig:parallel_spans}.
 
 	\begin{figure}
@@ -193,7 +194,7 @@ If the ids were not random, the parallel spans would be creating spans with ids 
 		\label{fig:parallel_spans_overlapping}
 	\end{figure}
 	
-The following sections contains information about how spans are exported for external communication with the user interface and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
+The following sections contain information about how spans are exported for external communication with the user interface and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
 \subsection{Span Savers \& Data Collectors}
 Spans are exported from the application using the span savers. Span saver for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span saver is static field of the \texttt{Span} class. Span savers need to be available to the monitored application and therfore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
 
@@ -252,6 +253,18 @@ The diagram \ref{fig:closing_spans} shows how spans are created, closed and save
 	\caption{Creating and closing spans.}
 	\label{fig:closing_spans}
 \end{figure}
+
+\subsection{Transferring Span Information}
+In order to capture the shared state between the nodes in the application or even between the threads on the same application node, the span details and trace context have to be transferred between the threads or between the nodes. Distrace prepares several methods for attaching trace context to either current thread or an object which acts as an carrier of the span information.
+
+Usually when transferring the trace context between the threads on the same node the copies of the trace context have to be used. When transferring the trace context between the different nodes this is not an issue.
+\begin{itemize}
+	\item \texttt{createAndAttachTo(carrier)} - this method creates the trace context and attaches it to the carrier object and current thread. This method is usually used just once at at the time of trace creation.
+	\item \texttt{getAndAttachFrom(carrier)} - this method obtains the trace context from the carrier object and attaches it to the current thread. 
+	\item \texttt{getWithoutAttachFrom} - this method obtains the trace context from the carrier object without attaching it to the current thread.
+	\item \texttt{getCopyWithoutAttachFrom} - this method obtains a deep copy of trace context from the carrier object without attaching it to the current thread. It is used in cases where child spans are processes for example in parallel by multiple threads. In this case, the copy of trace context with the same ID is shared among all these threads but they operate on very own object. This is done in order to avoid different traces between the spans when processing by multiple threads.
+	\item \texttt{attachOn(carrier)} - this method attaches the trace context on the carrier object without creating it and attaching it to the current thread.
+\end{itemize}
 
 \section{Native Agent}
 \label{native_agent_design}
