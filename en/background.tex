@@ -83,32 +83,33 @@ The second category of tools used for debugging large scale applications are bas
 The other tool used as an example in this category is AutomaDed. This tool creates several models from an application run and can compare them using clustering algorithm with (dis)-similarity metric to discover anomalous behavior. It can also point to specific code region which may be causing the anomaly.
 
 \section{Profiling Tools}
-Profiling is a form of dynamic code analysis. It may be used for example for determining how long each part of the system takes compared to the time of whole application run or for example to determine which part of the application uses the most memory. Profiling tools can be divided in two categories:
+Profiling is a form of dynamic code analysis. It may be used for example for determining how long execution of each part of the system takes compared to the time of whole application run or for example to determine which part of the application uses the most memory. Profiling tools can be divided in two categories:
 \begin{itemize}
 	\item \textbf{Sampling Profilers} \newline
-Sampling profilers take statistical samples of an application at well-defined points such as method invocations. The points where the application should take samples have to be inserted at the compilation time by the compiler. Sampling profilers usually have less overhead compared to instrumentation profilers. These profiles are good to collect for example time how long a method run, caller of the method or for example the complete stacktrace. However they are not able to collect any application specific information.
+Sampling profilers take statistical samples of an application at well-defined points such as method invocations. The points where the application should take samples have to be inserted at the compilation time by the compiler. For example, these profiles are good to collect information about time how long a method run, caller of the method or for example the complete stack trace. However they are not able to collect any application specific information.
 	\item \textbf{Instrumentation Profilers} \newline
-This can be solved by instrumentation profilers. These profilers are based on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers and usually give the developer the ability to specify extra points in the code where the application specific data ar recorded. Compared to sampling profilers, instrumentation profilers usually have slightly worse performance.
+The instrumentation profilers are based on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers and usually give the developer the ability to specify extra points in the code where the application-specific data are recorded. 
 \end{itemize}
-
-However, profilers can be also looked at from different point of view and categorized based on the level on which they operate and are able to record the information.
+ Sampling profilers usually have less overhead compared to instrumentation profilers, but on the other hand, instrumentation profilers allow to monitor application-specific parts of the application.
+ 
+Profilers can be also looked at from different point of view and categorized based on the level on which they operate and are able to record the information.
 \begin{itemize}
 	\item \textbf{System Profilers} \newline
-	System profilers operate on operating system level. They can show system code paths, but are not able to capture method calls done for example in Java application.
+	System profilers operate on operating system level. They can show system code paths, but are not able to capture method calls for example in Java application.
 	\item \textbf{Application Specific Profilers} \newline
 	Generally, application specific profilers are able to collect method calls within the application. For example, JVM profilers can show Java stack traces but are not able to show the further call sequence on the operating system level.
 
 \end{itemize}
-The ideal solution for monitoring purposes of Java applications would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers which are able to collect traces from both system and JVM profilers are usually called mixed-mode profilers. JDK8u60 comes with the solution in a form of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}.  Operating system is usually using this field to point to the most recent call on the stack frame and system profilers make uses of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. This leaves this register available for various kind of JVM optimizations. The \textit{-XX:+PreserveFramePointer}  option ensures that JVM abides the frame pointer register and will not use it as a general purpose register. Therefore, both system and JVM stack frames can appear in single call hierarchy. Using the JVM mixed-mode profilers we are able to collect stack traced leading to:
+The ideal solution for monitoring purposes of Java applications would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers used for collecting traces from both operating system and JVM level are usually called mixed-mode profilers. JDK8u60 comes with the solution in a form of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}. Operating system is usually using this field to point to the most recent call on the stack frame and system profilers make use of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. This leaves this register available for various kind of JVM optimizations. The \textit{-XX:+PreserveFramePointer}  option ensures that JVM abides the frame pointer register and will not use it as a general purpose register. Therefore, both system and JVM stack frames can appear in single call hierarchy. Using the JVM mixed-mode profilers, it is possible to collect stack traces leading to:
 \begin{itemize}
-	\item \textbf{Page Faults} - these traces are useful to show what JVM code triggered main memory to grow.
-	\item \textbf{Context Switches} - these traces are used to determine code paths which often lead to CPU switches.
-	\item\textbf{Disk I/O Requests} - these traces show code paths leading to IO operations such as blocking disk seek operation.
+	\item \textbf{Page Faults} - page faults are useful to show which JVM code triggered main memory to grow.
+	\item \textbf{Context Switches} - context switches are used to determine code paths that often lead to CPU switches.
+	\item\textbf{Disk I/O Requests} - capturing IO information allow to see code paths leading for example to blocking seek operation on the hard-drive.
 	\item \textbf{TCP Events} - these traces show code paths going from high-level Java code to low-level system methods such as \texttt{connect} or\texttt{ accept}. They can be used to reason about performance and good design of network communication in much more better detail.
-	\item \textbf{CPU Cache Misses} - these traces show code paths leading to cache misses. This information can be used to optimize the Java code to make better use of the existing cache hierarchy.
+	\item \textbf{CPU Cache Misses} - information about cache misses can be used to optimize Java code to make better use of the existing cache hierarchy.
 \end{itemize}
 
-All the information bellow can be described on a special chart called Flame charts.
+All the information above can be described on special graphs called Flame graphs.
 \subsubsection{Flame Graphs}
 Flame Graphs are special graphs introduced developer Brendan Gregg. Flame graphs are visualization for sampled stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling or instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. 
 
