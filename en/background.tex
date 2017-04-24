@@ -5,70 +5,70 @@ This chapter covers technologies relevant to the thesis. It starts with an overv
 In the next several sections the technologies considered to be used in Distrace or used in thesis are introduced. The sections cover libraries for bytecode manipulation, communication, logging and also cover important relevant parts of Java libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distribution package of the whole platform.
 
 \section{Cluster Monitoring Tools}
-The most significant and relevant platforms on which this thesis is based are Google Dapper and Zipkin. Both tools serve the same core purpose which is to monitor large-scale Java-based distributed applications. Zipkin is developed according to Google Dapper design which means that these two platforms share a few similar concepts. The basic concept shared between these two platforms is a concept called \textit{Span} and it is explained in more details in the following section in the meaning of this thesis. For now, a span can be though of as time slots encapsulating several calls from one node to another with well-defined start and end of the communication.
+The most significant and relevant platforms on which this thesis is inspired are Google Dapper, Zipkin and HTrace. All three tools serve the same core purpose, which is to monitor large-scale Java-based distributed applications. Zipkin and HTrace are developed according to Google Dapper design and therefore these three platforms share a few similar concepts. The basic concept shared between the platforms is a concept called \textit{Span}. Spans are structures used to collect the shared state between the application nodes and usually encapsulate a few calls between the neighboring nodes with well-defined start and end of the communication. They are formed in hierarchical structures called trace trees, in which the user can see how distributed calls related on each other. Spans are explained in more details later in the following sections. 
 
-The following two sections describe the basics of the both mentioned platform. Since both Zipkin and Google Dapper shares some basic concepts, only relevant and interesting parts to the thesis of each platform are described.
+The following three sections describe the basics of each of the mentioned platforms. Since Zipkin, HTrace and Google Dapper share some basic concepts, only those parts of each platform that are relevant and interesting to the thesis are described.
 \subsection{Google Dapper}
 \label{dapper}
-Google Dapper is proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
+Google Dapper is a proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Different parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
 \begin{itemize}
 	\item \textbf{Low overhead} \newline
-	Google Dapper should share the same life-cycle as the monitored application itself to capture also the intermittent events thus low overhead is one of the main design goals of the tool.
+	Google Dapper should share the same life-cycle as the monitored application itself to capture also the intermittent events and thus low overhead is one of the main design goals of the tool.
 	\item \textbf{Application level transparency} \newline
-	The developers and users of the application should not know about the monitoring tool and are not supposed to change the way how they interact with the system when the monitoring tool is running. It can be assumed from the paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced at the Google use the same libraries and share similar control flow practices.
+	The developers and users of the application should not need to know about the monitoring tool and are not supposed to change the way how they interact with the system when the monitoring tool is running. It can be assumed from the paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced at the Google use the same libraries and share similar control flow practices.
 	\item \textbf{Scalability} \newline
 	Such a system should perform well on data of significantly large scale.
 \end{itemize}	
-Google Dapper collects the information from distributed applications as distributed traces. The origin of the distributed trace is the communication or task initiator and the trace spans across the nodes in the cluster which took part in the computation or communication.
+Google Dapper collects the information from distributed applications as distributed traces. The origin of the distributed trace is the communication or task initiator and the trace spans across the nodes in the cluster also participating in the computation or communication.
 	
-There were two approaches proposed for obtaining the distributed traces when Google Dapper was developer: black-box and annotation-based monitoring approaches. The black-box approach assumes no additional knowledge about the application whereas the annotation-based approach can make use of additional information via annotations. Google Dapper is mainly using black-box monitoring schema since most of the control flow and RPC (Remote Procedure Call) subsystems are shared among Google, however support for custom annotations is provided via additional libraries build on top of core system. This gives the developer of an application possibility to attach additional information to spans which are very application-specific.
+There were two proposed approaches for obtaining the distributed traces when Google Dapper was developed: black-box and annotation-based monitoring approaches. The black-box approach assumes no additional knowledge about the application whereas the annotation-based approach can make use of additional information via annotations. Google Dapper is mainly using black-box monitoring schema since most of the control flow and RPC (Remote Procedure Call) subsystems are shared among Google, however support for custom annotations is provided via additional libraries build on top of the core system. This gives the developer of an application possibility to attach some additional information to spans, which are very application-specific.
 	
-In google Dapper, distributed traces are represented as so called trace trees, where tree nodes are basic units of work referred to as spans. Spans are related to other spans via dependency edges. These edges represents relationship between parent span and children of this span. Usually the edges represents some kind of RPC calls or similar kind of communication. Each span has can be uniquely identified using its ID. In order to reconstruct the whole trace tree, the monitoring tool needs to be able to identify the Span where the computation started. Spans without parent id are called root spans and serves exactly this purpose. Spans can also contain information from multiple hosts, usually from direct neighborhood of the span. Structure of a span in Google Dapper platform is described in the figure \ref{fig:dapper_span}.
+In google Dapper, distributed traces are represented as so called trace trees, where tree nodes are basic units of work referred to as spans. Spans are related to other spans via dependency edges. These edges represents relationship between parent span and children of this span. Usually the edges represent a set of related RPC calls or similar kind of communication. Each span can be uniquely identified using its id. In order to reconstruct the whole trace tree, the monitoring tool needs to be able to identify the span where the computation started. Spans without parent id are called root spans and serve exactly this purpose. Spans can also contain information from multiple hosts, usually from direct neighborhood of the span. Structure of a span in Google Dapper platform is described in the Figure \ref{fig:dapper_span}. The figure shows a single span encapsulating the client-server communication. It can be seen that events from both nodes are recorded within a single span.
 \begin{figure}
 	\centering
 		\includegraphics[scale=0.7]{dapper_span.png}
-	\caption{Example of Span in Google Dapper. Picture taken from the Google Dapper paper}
+	\caption{Example of of a span in Google Dapper. Picture taken from the Google Dapper paper}
 	\label{fig:dapper_span}
 \end{figure}
 
-Google Dapper is able to follow distributed control paths thanks to instrumentation of a few common shared libraries among Google developers. This instrumentation is not visible to the final users of the system so the system has high-level of application transparency. The instrumentation points are:
+Google Dapper is able to follow distributed control paths thanks to instrumentation of a few common shared libraries among Google developers. This instrumentation is not visible to the final users of the system and therefore Dapper has high-level of application transparency. Instrumentation in Dapper is achieved by tracing three main instrumentation points. 
 \begin{itemize}
-	\item Dapper attaches so called trace-context as thread-local variable to the thread when it handles any kind of control path. Trace context is small data structure containing mainly just reference to current and parent span via their ids.
+	\item Dapper attaches a so called trace context as thread-local variable to the current thread when the thread handles any kind of traced control path. Trace context is a small data structure containing mainly reference to a current and parent span via their ids.
 	
-	\item Dapper instruments the callback mechanism so when computation is deferred, the callbacks still carry around trace context of the creator and therefore also parent and current span ids.
+	\item In distributed systems the communication is often done via callbacks. Callback is a method which is usually executed when some execution in different part of the application has finished. Dapper instruments the callback mechanism so when computation is deferred, traced callbacks still carry around the trace context of the creator and therefore also parent and current span ids.
 	
-	\item Most of the communication in Google is using single RPC framework with language bindings to different languages. This library is instrumented as well to achieve the desired transparency.
+	\item Most of the communication in Google is using single RPC framework with language bindings to different languages. This library is instrumented as well to achieve the desired application-level transparency.
 \end{itemize}
 
 Sampling of the captured data has also a positive effect on the low-level overhead of the whole application. As mentioned in the paper, the volume of data processed at Google is significant so only samples are taken at a time.
 
 \subsection{Zipkin}
 \label{zipkin}
-Zipkin is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
-information are recorded automatically, for example time when Span was created, whereas some information are optional. Zipkin has also support for custom application-specific annotations.
+Zipkin is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of the captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
+information are recorded automatically, for example time when a span was created, whereas some information are optional. Zipkin has also support for custom application-specific annotations.
 
-Zipkin architecture can bee seen on figure \ref{fig:zipkin_architecture}.
+Zipkin architecture can bee seen on Figure \ref{fig:zipkin_architecture}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{zipkin_architecture.png}
 	\caption{Zipkin architecture - http://zipkin.io/pages/architecture.html}
 	\label{fig:zipkin_architecture}
 \end{figure}
-The instrumented application is responsible for creating valid traces. For that reason, Zipkin has set of pre-instrumented libraries ready to be used in order to work well with the whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead. Once a span is created, it is sent to Zipkin collector. In General, Zipkin consists of 4 components:
+The instrumented application is responsible for creating valid traces. For that reason, Zipkin has set of pre-instrumented libraries ready to be used in order to work well with the whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead. Once a span is created by the application, it is sent to Zipkin collector. In General, Zipkin consists of four components:
 \begin{itemize}
 	\item \textbf{Zipkin Collector} \newline
-	The collector is usually a daemon thread or process which stores, validates and indexes the data for future lockups.
+	The collector is usually a daemon thread or process which stores, validates and indexes the data for future lookups.
 	\item\textbf{Storage} \newline
-	Data in Zipkin can be stored in a multiple ways, so this is a pluggable component. Data can be stored for example in Cassandra, MySQL or can be send to Zipkin UI right away without any intermediate storage at all. The last option is good for small amount of data since the user interface is not supposed to handle data storage.
+	Data in Zipkin can be stored in multiple ways which makes this is a pluggable component. For example, data can be stored in Cassandra, MySQL or can be send to Zipkin user interface right away without any intermediate storage. The last option is good for handling a small amount of data since the user interface is not supposed to handle storing data of big size.
 	\item \textbf{Zipkin Query Service} \newline
-	This component acts as a query daemon allowing the user to query various information about span using simple JSON API.
+	This component acts as a query daemon allowing the user to query various information about spans using simple JSON API.
 	\item \textbf{Web UI} \newline
-	Basic, but very useful user interface. It allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format.
+	A basic, but very useful user interface. It allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format.
 \end{itemize}
-The Zipkin Web UI is used as front-end for the monitoring tool developed on this thesis. More information how it is used in the thesis is described in more detail in \hyperref[sec:zipkin_ui]{Zipkin UI} section of \hyperref[chap:design]{Design} chapter.
+The Zipkin Web UI is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in section 4.6 \hyperref[sec:zipkin_ui]{Zipkin UI} of \hyperref[chap:design]{Design} chapter.
  \section{HTrace}
  \label{htrace}
- HTrace https://github.com/cloudera/htrace is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts as Spans and Traces. In order to allow tracing of the application, the users need to manually attach Span identifiers to desired RPC's (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the Span and Trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread. Htrace has also support for custom Spans and annotations and thus allows the user to collect application specific information as part of the Spans. 
+ HTrace https://github.com/cloudera/htrace is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. Htrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
  
  The disadvantage of this tool is the need for instrumenting the monitored application in order to allow the tracing and spans collection.
 \section{Tools for Large-Scale Debugging}
