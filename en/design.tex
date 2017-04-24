@@ -275,7 +275,7 @@ The native agent is used for accessing the internal state of the monitored appli
 
 The native agent consist of several parts. The most important parts are:
 \begin{itemize}
-	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM byte code in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]f{Implementation} chapter.
+	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]f{Implementation} chapter.
 	\item \textbf{InstrumentorAPI}. \newline The \texttt{InstrumentorApi} class provides several methods which are used to communicate with the instrumentation server JVM. All the queries to the server are done via instance of this class.
 	\item \textbf{AgentCallbacks}. \newline All callbacks used in the native agent are defined in this namespace.
 	\item \textbf{AgentArgs}.  \newline The \texttt{AgentArgs} class contains all the logic required for argument parsing.
@@ -291,7 +291,7 @@ As part of the initialization process, the agent is responsible for either conne
 The callback registered for the \texttt{VM Init} event is responsible for loading all additional classes from the instrumentation server as part of the initialization as well. The additional classes are for example \texttt{Span}, \texttt{TraceContext} or custom implementations of \texttt{SpanSaver} abstract class. These classes are used in the instrumented code and therefore have to be available to the monitored application. The native agent is designed in a way that developers are not supposed to change the code of if. All the extension are supposed to be done within the instrumentation server. Therefore, the instrumentation server is asked at the initialization phase for the list of all additional classes and they are sent to the native agent. The agent puts all the received classes on the application's class-path so they are available to the instrumented code.
 
 \subsection{Instrumentation}
-Code for handling the instrumentation is part of the callback for the \texttt{Class File load Hook} event. The callback has the byte code for the class being loaded as its input parameter and allow the developer to pass a new instrumented byte code as the output parameter. The process of instrumentation is described here, however the technical details are described in the following chapter.
+Code for handling the instrumentation is part of the callback for the \texttt{Class File load Hook} event. The callback has the bytecode for the class being loaded as its input parameter and allow the developer to pass a new instrumented bytecode as the output parameter. The process of instrumentation is described here, however the technical details are described in the following chapter.
 
 The process consist of several stages:
 \begin{enumerate}
@@ -300,7 +300,7 @@ The process consist of several stages:
 	\item Firstly, the check whether the virtual machine is started is done. If the virtual machine is started and initialized, the instrumentation continues, otherwise the instrumentation for currently loaded class is skipped without asking the instrumentation server since it the class is a system class and it is not desired to instrument Java system classes at this moment.
 	\item Attach JNI environment to the current thread. Since the JVMTI and JNI does not have automatic thread management, it's up to the developer to take care of correct threading management.
 	\item Discover the class-loader used for loading the class
-	\item Parse the name of the class being loaded. Even though the callback provides input parameter which should contain the name of loaded class, at some circumstances it can be set to \texttt{NULL} even though the class name is available in the byte code. Instead of relying on this parameter, the byte code is parsed and the class name is found manually.
+	\item Parse the name of the class being loaded. Even though the callback provides input parameter which should contain the name of loaded class, at some circumstances it can be set to \texttt{NULL} even though the class name is available in the bytecode. Instead of relying on this parameter, the bytecode is parsed and the class name is found manually.
 	\item Decide whether the instrumentation should continue. This check is based on the used class loader and name of the class being loaded. Classes loaded by the \texttt{Boostrap} class loader and in case of Sun JVM, from \texttt{sun.reflect.DelegatingClassloader} are not supposed to be instrumented. 
 	The \texttt{Boostrap} class loader is used to load system class and the second mentioned class loader is used to load synthetic classes and in both cases, it's not desired to instrument classes loaded by these class loaders.
 	There are also some ignored classes for which the instrumentation is not desired. Example of these classes are the classes loaded during initialization phase from the instrumentation server and the auxiliary classes generated by the Byte Buddy framework. Auxiliary classes are small helper classes Byte Buddy is using for instance for accessing the super class of the currently instrumented class. Therefore the instrumentation continues only If the class is not ignored and not loaded by ignored class loader.
@@ -308,10 +308,10 @@ The process consist of several stages:
 	
 	If the server does not contain the class, the native agent sends the class data to the instrumentation server, parse the class file for all the dependent classes and send all dependent classes to the instrumentation. This step is repeated throughout the dependency scan recurrently until the loaded class does not have any other dependencies or until all dependencies is already available on the server. All dependencies for the currently instrumented class have to be available on the server in order to perform the instrumentation.
 
-	\item At this stage, the class is already on the instrumentation server and all dependencies for this class as well. The native agent waits for the instrumented byte code to be send from the server. 
+	\item At this stage, the class is already on the instrumentation server and all dependencies for this class as well. The native agent waits for the instrumented bytecode to be send from the server. 
 	\item Exit the critical section.
 \end{enumerate}	
-Even though the class is fully instrumented and the instrumented byte-code is available to the agent, the process is not completely done. The instrumentation library used at the instrumentation sever ( Byte Buddy) is using so called \texttt{Initializer} class to set up special interceptor field in the instrumented classes. It is a static field which references the instance of the class interceptor - class defining the instrumentation code. This field is automatically set by Byte Buddy framework in most of the cases, but since in case of this thesis the instrumentation is done on different JVM then where the code is actually running, it needs to be handled explicitly. In order to set this field by corresponding \texttt{Initializer} class, both the initializer class and interceptor class need to be available on the agent. The instrumentation server sends the initializer class together with the instance of interceptor during the instrumentation of the class and the agent registers the interceptor and initializers with the instrumented class for later use since the static interceptor field can be set up when the class is used for the first time. The initializers are loaded during  \texttt{Class Prepare} event. This event is triggered when the class is prepared but no code has been execute so for. 
+Even though the class is fully instrumented and the instrumented bytecode is available to the agent, the process is not completely done. The instrumentation library used at the instrumentation sever ( Byte Buddy) is using so called \texttt{Initializer} class to set up special interceptor field in the instrumented classes. It is a static field which references the instance of the class interceptor - class defining the instrumentation code. This field is automatically set by Byte Buddy framework in most of the cases, but since in case of this thesis the instrumentation is done on different JVM then where the code is actually running, it needs to be handled explicitly. In order to set this field by corresponding \texttt{Initializer} class, both the initializer class and interceptor class need to be available on the agent. The instrumentation server sends the initializer class together with the instance of interceptor during the instrumentation of the class and the agent registers the interceptor and initializers with the instrumented class for later use since the static interceptor field can be set up when the class is used for the first time. The initializers are loaded during  \texttt{Class Prepare} event. This event is triggered when the class is prepared but no code has been execute so for. 
 
 The callback for \texttt{Prepare} event is also used to register the native methods for the class being loaded. Registering the native method to the class makes it available from Java programming language.
 
@@ -319,9 +319,9 @@ Several technical difficulties had to be dealt with during the development. For 
 \subsection{Instrumentation API}
 The Instrumentation API is used to communicate with the instrumentation server. It provides low-level methods for sending data in form of byte arrays or strings and the corresponding methods for receiving the data. On top of these method several methods are built to make the communication easier. The most important methods are:
 \begin{itemize}
-	\item \texttt{sendClassData} method sends byte code to the instrumentation server.
-	\item \texttt{isClassOnInstrumentor} method checks whether the byte code for the given class is already on the instrumentation server or not.
-	\item \texttt{instrument} method triggers the instrumentation and returns the instrumented byte code.
+	\item \texttt{sendClassData} method sends bytecode to the instrumentation server.
+	\item \texttt{isClassOnInstrumentor} method checks whether the bytecode for the given class is already on the instrumentation server or not.
+	\item \texttt{instrument} method triggers the instrumentation and returns the instrumented bytecode.
 	\item \texttt{loadInitializersFor} method is for loading the initializers for specific class.
 	\item \texttt{loadDependencies} method is used to load all dependent classes and upload them on the instrumentation server. The dependency is uploaded only in case it's not already available on the instrumentation server.
 	\item \texttt{shouldContinue} method checks if the class on its input is allowed to be instrumented.
@@ -343,9 +343,9 @@ The native agent accepts several arguments which can be used to affect the agent
 
 \section{Instrumentation Server}
 \label{sec:inst_server}
-The instrumentation server is responsible for instrumenting the byte code received from the native agent in separated JVM and also acts as the base library for the instrumentation for specific applications. The developer extending the instrumentation server can use prepared method to define custom instrumentation points without touching the internals of the native agent.
+The instrumentation server is responsible for instrumenting the bytecode received from the native agent in separated JVM and also acts as the base library for the instrumentation for specific applications. The developer extending the instrumentation server can use prepared method to define custom instrumentation points without touching the internals of the native agent.
 
-This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class being loaded is required to be instrumented. If yes, the server receives the byte code, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular it does not take track about the distributed traces. The information about traces is contained in the application's instrumented classes.
+This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class being loaded is required to be instrumented. If yes, the server receives the bytecode, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular it does not take track about the distributed traces. The information about traces is contained in the application's instrumented classes.
 
 The platform was designed to be configurable and deployment of instrumentation server is supported via two approaches. The instrumentation server can be either on the network available to all the application nodes and can be shared by all applications. This has the advantage of caching the instrumented classes. So when any class is instrumented for the first time, it is saved and the instrumentation is not performed for other nodes but the class is immediately sent. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same node. In this case the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the diagram \ref{fig:shared_server}.
  
@@ -368,7 +368,7 @@ The platform was designed to be configurable and deployment of instrumentation s
 Except from the cached classes, the server does not contain any application state and it just reacts to the agent requests. It can accept four type of requests:
 \begin{itemize}
 	\item Request for code instrumentation.
-	\item Request for storing byte code for a class on the server.
+	\item Request for storing bytecode for a class on the server.
 	\item Request for sending all helper classes needed by the agent such as the \texttt{Span} class or \texttt{TraceContext} class.
 	\item Request to check whether the server contains specific class or not.
 \end{itemize}
@@ -378,12 +378,12 @@ The instrumentation server needs to deal with several technical problems. The ma
 \subsection{Instrumentation}
 The instrumentation of the class is triggered by the agent and it's done in two stages. The first stage informs the client whether the class is already on the instrumentation server or not. The second stage is the instrumentation itself. The first stage is initiated by the agent. The server performs the check for class availability in 3 phases:
 \begin{enumerate}
-	\item Check whether the instrumented byte code for this class is available.
-	\item If not, check whether the original byte code for this class is available.
+	\item Check whether the instrumented bytecode for this class is available.
+	\item If not, check whether the original bytecode for this class is available.
 	\item If not, check if the class can be loaded using the server's context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the application classes on the instrumentation server classpath for optimization reasons.
 \end{enumerate}
 
-The server informs the agent if it does not have the byte code for the class available and in that case  the agent sends the class to the server. The server registers the received byte-code under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
+The server informs the agent if it does not have the bytecode for the class available and in that case  the agent sends the class to the server. The server registers the received bytecode under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
 The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the instrumented class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
 
 The code instrumentation is handled by \texttt{CustomAgentBuilder} and \texttt{BaseAgentBuilder} classes.
@@ -402,9 +402,9 @@ Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAge
 \end{itemize}
 
 Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is overridden in the child class. The dependencies are all the classes specified in the class file such as type of the methods return value or arguments, super class or implemented interfaces. 
-By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw byte code of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network, custom \texttt{InstrumentorClassloader} class loader is used to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
+By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw bytecode of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network, custom \texttt{InstrumentorClassloader} class loader is used to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
 
-However, Byte Buddy internal API does not work with raw byte code for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and created instance contains metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second class is used for caching the type descriptions so they are not created every time the class is accessed. 
+However, Byte Buddy internal API does not work with raw bytecode for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and created instance contains metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second class is used for caching the type descriptions so they are not created every time the class is accessed. 
 
 So in overall, class lookup is done in the following two steps:
 \begin{enumerate}

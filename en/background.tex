@@ -1,10 +1,11 @@
 \chapter{Background}
 \label{chap:background}
-This chapter covers technologies relevant to the thesis. It starts with an overview of similar monitoring tools for cluster based applications and follows by short overview of tools used for debugging of large scale applications. Different approaches to applications profiling are described in the following part. 
-In the next several sections the technologies consider for thesis or used in thesis are introduced. It covers libraries for byte code manipulation, communication, logging and  also covers important relevant parts of Java libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distribution package of the whole platform.
+This chapter covers technologies relevant to the thesis. It starts with an overview of similar monitoring tools for cluster-based applications and follows by short overview of tools used for debugging of large scale applications. Different approaches to applications profiling are described in the following part. 
+
+In the next several sections the technologies considered to be used in Distrace or used in thesis are introduced. The sections cover libraries for bytecode manipulation, communication, logging and also cover important relevant parts of Java libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distribution package of the whole platform.
 
 \section{Cluster Monitoring Tools}
-The most significant and relevant platforms on which this thesis is based are Google Dapper and Zipkin. Both tools serve the same core purpose which is to monitor large-scale Java based distributed applications. Zipkin is developed according to Google Dapper design which means that these two platforms share a few similar concepts. The basic concept shared between these two platforms is a concept called \textit{Span} and it is explained in more details in the following section in the meaning of this thesis. For now, a span can be though of as time slots encapsulating several calls from one node to another with well-defined start and end of the communication.
+The most significant and relevant platforms on which this thesis is based are Google Dapper and Zipkin. Both tools serve the same core purpose which is to monitor large-scale Java-based distributed applications. Zipkin is developed according to Google Dapper design which means that these two platforms share a few similar concepts. The basic concept shared between these two platforms is a concept called \textit{Span} and it is explained in more details in the following section in the meaning of this thesis. For now, a span can be though of as time slots encapsulating several calls from one node to another with well-defined start and end of the communication.
 
 The following two sections describe the basics of the both mentioned platform. Since both Zipkin and Google Dapper shares some basic concepts, only relevant and interesting parts to the thesis of each platform are described.
 \subsection{Google Dapper}
@@ -134,21 +135,21 @@ Flame charts can be created in a few simple steps, but it depends on the type of
 
 The purpose of this really short section is just to introduce the idea of Flame charts because it's one of the future plans to add support for flame charts into to monitored tools developed by this thesis. For more information about the flame charts please visit the Brendan Gregg's blog.
 \section{Byte Code Manipulation Libraries}
-The thesis highly depends on the Java byte code instrumentation and this section gives overview of four byte code manipulation libraries considered to be used at the thesis:  Javassist, Byte Buddy, CGlib and. Since it's a core feature of the whole platform and affects both the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following \hyperref[analysis]{Analysis} section.
+The thesis highly depends on the Java bytecode instrumentation and this section gives overview of four bytecode manipulation libraries considered to be used at the thesis:  Javassist, Byte Buddy, CGlib and. Since it's a core feature of the whole platform and affects both the performance and the usability of the whole platform, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following \hyperref[analysis]{Analysis} section.
 
 \subsection{ASM}
 \label{asm}
 ASM is a low-level high-performance Java bytecode manipulation framework. It can be used to dynamically create new classes or redefined already existing classes. It works on the bytecode level so the user of this library is expected to understand the JVM bytecode in detail. ASM operates on event-driven model as it makes use of Visitor design pattern to walk through complex bytecode structures. ASM defines some default visitors such as \textit{FieldVisitor}, \textit{MethodVisitor} or \textit{ClassVisitor}. The ASM project can be a great fit for project requiring a full control over the bytecode creation or inspection since it's low-level nature.
 \subsection{Javassist}
 \label{javassist}
-Javassist is well-known byte code manipulation library built on top of ASM. It allows the Java programs to define new classes at run-time and also to modify class files prior the JVM loads them. It works on higher level of abstraction compared to ASM so the user of this library is not required to work with the low-level byte code. The advantage of Javassist is that the injected code does not depend on the Javassist library at all. The code to be injected to the existing byte code is expressed as Java Strings. The disadvantage of this approach is that the the code to be injected is not subject to code inspection in most of the current IDEs. The strings representing the code are compiled at run-time by special Javassist compiler. This run-time compilation works well for most of the common programming structures but for example auto-boxing and generics are not supported by the compiler. Also it is important to mention that Javassist does not have support for the code injection itself. Therefore, it can be used for specifying the code which alters the original code but external tool needs to be used to inject the code itself.
+Javassist is well-known bytecode manipulation library built on top of ASM. It allows the Java programs to define new classes at run-time and also to modify class files prior the JVM loads them. It works on higher level of abstraction compared to ASM so the user of this library is not required to work with the low-level bytecode. The advantage of Javassist is that the injected code does not depend on the Javassist library at all. The code to be injected to the existing bytecode is expressed as Java Strings. The disadvantage of this approach is that the the code to be injected is not subject to code inspection in most of the current IDEs. The strings representing the code are compiled at run-time by special Javassist compiler. This run-time compilation works well for most of the common programming structures but for example auto-boxing and generics are not supported by the compiler. Also it is important to mention that Javassist does not have support for the code injection itself. Therefore, it can be used for specifying the code which alters the original code but external tool needs to be used to inject the code itself.
 \subsection{CGLib}
 \label{cglib}
 CGLib as another byte-code manupulation library built on top of ASM. The main concepts are build around `Enhancer` class which is used to create proxies by dynamically extending classes at run-time. The proxified class is then used to intercept method calls and the result of previous methods or fields as we define. However CGLib lacks comprehensive documentation making harder to even understand the basics.
 
 \subsection{Byte Buddy}
 \label{sec:byte_buddy}
-Byte Buddy is fairly new, light-weight and high-level byte code manipulation library. The library depends only on visitor API of the ASM library which does not further have any other dependencies. It does not require from the user to understand format of java byte code but despite this, it gives the users full flexibility to redefine the byte code according to their specific needs. Also, classes created or instrumented by Byte Buddy does not depend on the Byte Buddy framework. Despite it's high-level approach, it still offers great performance and is used at frameworks such as Mockito or Hibernate. Byte Buddy can be used for both code generation and transformation of existing code.
+Byte Buddy is fairly new, light-weight and high-level bytecode manipulation library. The library depends only on visitor API of the ASM library which does not further have any other dependencies. It does not require from the user to understand format of java bytecode but despite this, it gives the users full flexibility to redefine the bytecode according to their specific needs. Also, classes created or instrumented by Byte Buddy does not depend on the Byte Buddy framework. Despite it's high-level approach, it still offers great performance and is used at frameworks such as Mockito or Hibernate. Byte Buddy can be used for both code generation and transformation of existing code.
 
 \subsubsection{Code Generation}
 Code generation is done by specifying from which class a new class should be sub-classing. In the most generic case, class can be created based on the \texttt{Object} class. The newly created class can introduce new methods or intercept methods from it's super class. In order to intercept existing methods (change their behavior and return value), the method to be intercepted has to be identified using so-called \texttt{ElementMatchers}. These matchers allow the developer to identify methods using for example their names, number of arguments, return types or associated annotations. The whole list of matchers and also examples how code can be generated is greatly described in the documentation of the Byte Buddy library.
@@ -189,7 +190,7 @@ class Foo {
 }
 \end{lstlisting}
 		
-It can therefore be seen that in case of interceptors, Byte Buddy does not inline the byte code to the \texttt{Foo} class but requires the interceptor class to be available on the machine where the instrumentation takes place. Also the interceptor field needs to be initialized, which is in this case done in the static initializer. The initialization of interceptors is done using special helper class called \texttt{LoadedTypeInitializer}.
+It can therefore be seen that in case of interceptors, Byte Buddy does not inline the bytecode to the \texttt{Foo} class but requires the interceptor class to be available on the machine where the instrumentation takes place. Also the interceptor field needs to be initialized, which is in this case done in the static initializer. The initialization of interceptors is done using special helper class called \texttt{LoadedTypeInitializer}.
 
 There are multiple ways how this behavior can be changed:
 \begin{enumerate}
@@ -198,7 +199,7 @@ There are multiple ways how this behavior can be changed:
 \item Instead of using interceptors, advice API which in-lines the code to the class itself may be used.
 \end{enumerate}
 \subsubsection{Advice API}
-Advices are another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the interceptors, but in cases where it's possible to use it, the code is in-lined into the original class's byte code and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to the performance if interceptors.
+Advices are another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the interceptors, but in cases where it's possible to use it, the code is in-lined into the original class's bytecode and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to the performance if interceptors.
 However, the instrumentation using Advice API is only allowed before or after the matched method. This is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations.
 
 \section{Communication Middleware}
@@ -335,7 +336,7 @@ This section covers selected areas of the Java programming language relevant to 
 \subsubsection{Class Loading Process}
 Java allows program to load classes dynamically at run-time. This is achieved by a following process:
 \begin{enumerate}
-	\item \textbf{Loading} - Load the byte code from a class file.
+	\item \textbf{Loading} - Load the bytecode from a class file.
 	\item \textbf{Linking} - Linking is the process of incorporating a new class to the run-time state of the JVM. This phase consists of 3 sub-phases:
 	\begin{enumerate}
 		\item \textbf{Verification} - Ensure that type in the binary format is correct and respects JVM restrictions.
