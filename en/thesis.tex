@@ -36,7 +36,7 @@
 \usepackage{bm}             % boldface symbols (\bm)
 \usepackage{graphicx}       % embedding of pictures
 \usepackage{fancyvrb}       % improved verbatim environment
-\usepackage{natbib}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
+\usepackage[square,numbers]{natbib}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
 \usepackage[nottoc]{tocbibind} % makes sure that bibliography and the lists
 			    % of figures/tables are included in the table
 			    % of contents
@@ -102,10 +102,8 @@ The main goal of this thesis the is to create a monitoring platform and library 
 \hypersetup{pdfauthor={\ThesisAuthor}}
 \hypersetup{pdfkeywords=\Keywords}
 \hypersetup{urlcolor=blue}
-\bibliographystyle{plain}
 % Definitions of macros (see description inside)
 \include{macros}
-
 % Title page and various mandatory informational pages
 \begin{document}
 \include{title}
@@ -124,7 +122,6 @@ The main goal of this thesis the is to create a monitoring platform and library 
 \include{bigexample}
 \include{Evaluation}
 \include{Conclusion}
-An~example citation: \cite{Andel07}
 
 %%% Bibliography
 \include{bibliography}

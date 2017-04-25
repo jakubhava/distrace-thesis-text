@@ -10,7 +10,7 @@ The most significant and relevant platforms on which this thesis is inspired are
 The following three sections describe the basics of each of the mentioned platforms. Since Zipkin, HTrace and Google Dapper share some basic concepts, only those parts of each platform that are relevant and interesting to the thesis are described.
 \subsection{Google Dapper}
 \label{dapper}
-Google Dapper is a proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Different parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
+Google Dapper \cite{DapperPaper} is a proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Different parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
 \begin{itemize}
 	\item \textbf{Low overhead} \newline
 	Google Dapper should share the same life-cycle as the monitored application itself to capture also the intermittent events and thus low overhead is one of the main design goals of the tool.
@@ -27,7 +27,7 @@ In google Dapper, distributed traces are represented as so called trace trees, w
 \begin{figure}
 	\centering
 		\includegraphics[scale=0.7]{dapper_span.png}
-	\caption{Example of of a span in Google Dapper. Picture taken from the Google Dapper paper}
+	\caption{Example of a span in Google Dapper, taken from Google Dapper paper \cite{DapperPaper}}
 	\label{fig:dapper_span}
 \end{figure}
 
@@ -44,14 +44,14 @@ Sampling of the captured data has also a positive effect on the low-level overhe
 
 \subsection{Zipkin}
 \label{zipkin}
-Zipkin is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of the captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
+Zipkin\footnote{More information about Zipkin tracing tool is available at \url{http://zipkin.io}.} is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of the captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
 information are recorded automatically, for example time when a span was created, whereas some information are optional. Zipkin has also support for custom application-specific annotations.
 
 Zipkin architecture can bee seen on Figure \ref{fig:zipkin_architecture}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{zipkin_architecture.png}
-	\caption{Zipkin architecture - http://zipkin.io/pages/architecture.html}
+	\caption{Zipkin architecture, from Zipkin Architecture \cite{ZipkinImage}}
 	\label{fig:zipkin_architecture}
 \end{figure}
 The instrumented application is responsible for creating valid traces. For that reason, Zipkin has set of pre-instrumented libraries ready to be used in order to work well with the whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead. Once a span is created by the application, it is sent to Zipkin collector. In General, Zipkin consists of four components:
@@ -68,7 +68,7 @@ The instrumented application is responsible for creating valid traces. For that 
 The Zipkin Web UI is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in section 4.6 \hyperref[sec:zipkin_ui]{Zipkin UI} of \hyperref[chap:design]{Design} chapter.
  \section{HTrace}
  \label{htrace}
- HTrace https://github.com/cloudera/htrace is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. Htrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
+ HTrace\footnote{The project is available at \url{https://github.com/cloudera/htrace}.} is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. Htrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
  
  The disadvantage of this tool is the need for instrumenting the monitored application in order to allow the tracing and spans collection.
 \section{Tools for Large-Scale Debugging}
