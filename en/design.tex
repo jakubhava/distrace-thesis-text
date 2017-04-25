@@ -89,43 +89,47 @@ In order to be able to collect this type of information and be able to reason ab
 \item \textbf{The instrumented client:}
 \begin{lstlisting}[language=Java]
 public acceptTask(Task task){
-  Inst.openSpan(task)
-  Inst.currentSpan().addAnnotation("tskReceived", timestamp)
+  TraceContext tc = TraceContext.create()
+  tc.attachOnObject(task)
+  Span s = tc.openSpan("Main Client Span")	
+  s.addAnnotation("tskReceived", timestamp)
   ...
   preprocessTask(task)
-  Inst.currentSpan().addAnnotation("tskPreprocessed", timestamp)
+  s.addAnnotation("tskPreprocessed", timestamp)
   ...
   sendTaskForComputation(task)
   ...
-  waitForExporterToFinish()
+  Result res = waitForExporterToFinish() // blocking method
   ...
-  Inst.closeCurrentSpan()
+  tc.closeCurrentSpan()
 }
 \end{lstlisting}
-The \texttt{Inst.openSpan} opens a new span, attaches it to the current thread and also attaches the span information to the task object which is passed around the network. In this case, the method actually creates a new trace tree since it's always start of the monitored communication. The \texttt{addAnnotation} is used to add application specific information to the monitored span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span saver. In the default case, the data are sent to the user interface directly.
+The \texttt{TraceContext.create} creates a new trace and the \texttt{TraceContext.attachOnObject} attaches the trace context on the \texttt{task} object, which is passed around the network. The method \texttt{openSpan} opens a new span encapsulating the client computation. The \texttt{addAnnotation} is used to add application specific information to the current span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span saver. In the default case, the data are sent to the user interface directly.
 
 
 \item \textbf{The instrumented executor:}
 \begin{lstlisting}[language=Java]
 public execute(Task task){
-  Inst.openSpan(task)
+  TraceContext tc = TraceContext.getFromObject(task)
+  tc.openSpan("Executor span")
   TaskResult result = executeTask(task)
-  Inst.injectCurrentSpan(result)
+  tc.attachOnObject(result)
   ...
-  sendResultForExport(result)
-  Inst.closeCurrentSpan()
+  sendResultForExport(result) // non-blocking method
+  tc.closeCurrentSpan()
 }
 \end{lstlisting}
-In this case, the \texttt{openSpan} method gets the span information from the task object and attaches it to the current thread. The newly introduced method \texttt{injectCurrentSpan} is used to inject span information from the current thread to a new object.
+In this case, we don't create a new trace context but get the existing one from the \texttt{task} object on the input. A new nested span is created. This span has the original span created within the client application as its parent.
 
 \item \textbf{The instrumented exporter:}
 \begin{lstlisting}[language=Java]
 public export(TaskResult result){
-  Inst.openSpan(result)
+  TraceContext tc = TraceContext.getFromObject(result)
+  tc.openSpan("Exporter span")
   saveToDatabase(result)
   ...
+  tc.closeCurrentSpan()
   notifyClient()	
-  Inst.closeCurrentSpan()
 }
 \end{lstlisting}
 In this case, the meaning of the methods is the same as above.
