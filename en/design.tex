@@ -205,13 +205,13 @@ Data collected within spans are internally represented in JSON format understand
 
 Span saver implementations need to extend from the abstract ancestor defining common methods for each span saver. Also, in order to be able to use the saver automatically in the code, it has to have a constructor with single \texttt{String} argument accepting saver arguments. The arguments format is defined in the case of default span savers however the developer may use any format in case of custom span savers. The common ancestor, \texttt{SpanSaver} abstract class has two abstract methods:
 \begin{itemize}
-	\item \texttt{saveSpan}. This method is used for saving the span. Custom span saver implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, this method is called asynchronously in a separated thread to allow asynchronous span processing which has a performance benefit.
+	\item \texttt{saveSpan}. This method is used for saving the span. Custom span saver implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{saveSpan} method is called asynchronously in a separated thread to allow asynchronous span processing, which has a performance benefit.
 	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span saver. Each span saver is responsible for parsing the span saver arguments.
 \end{itemize}
 
 As mentioned above, the tool provides two default simple span savers:
 \begin{itemize}
-	\item  \texttt{DirectZipkinSaver} - The default span saver sends the collected span  asynchronously to the user interface right away without storing the data on disk to be collected by an external data collector. In this case the functionality of the span saver and the data collector are handled by this single saver. This span saver should be used for demonstration purposes only since it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
+	\item  \texttt{DirectZipkinSaver} - The default span saver sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by an external data collector. In this case the functionality of the span saver and the data collector are handled by this single saver. This span saver should be used for demonstration purposes only since it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
 	
 	This saver accepts a single argument which is ip and port of the Zipkin UI service. The diagram \ref{fig:zipkin_span_saver} shows how the Zipkin span saver is used.
 	
@@ -239,7 +239,7 @@ Additionally, the diagram \ref{fig:custom_span_saver} shows how a custom span sa
 \end{figure}
 In order to give the developer the flexibility to add new savers without changing the internals, the span savers have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanSaver} abstract class. The reason why the classes needs to be discovered is explained in the following \hyperref[native_agent_design]{Native Agent} section. 
 
-To make the developer life easier, the \textbf{AutoService} library from \textit{https://github.com/google/auto/tree/master/service} is used. Instead of manually registering the implemented span savers into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanSaver}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
+To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} is used. Instead of manually registering the implemented span savers into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanSaver}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
 
 \subsection{Trace Context}
 Trace context is a class used for storing the information about the current span and also for creating new spans and closing current spans. Trace context is always attached to a specific thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Singleton instance of class \texttt{TraceContextManager} is used for attaching the threads to the trace contexts and vice-versa. It has a few methods allowing the developer to attach trace context to a specific thread and also to get trace context which is attached to a current thread.
@@ -260,23 +260,27 @@ In order to capture the shared state between the nodes in the application or eve
 
 Usually when transferring the trace context between the threads on the same node the copies of the trace context have to be used. When transferring the trace context between the different nodes this is not an issue.
 
-The method the developer can used for obtaining and attaching the trace context are:
+The methods the developer can use for obtaining and attaching the trace context are:
 \begin{itemize}
-	\item \texttt{createAndAttachTo(carrier)} - this method creates the trace context and attaches it to the carrier object and current thread. This method is usually used just once at at the time of trace creation.
-	\item \texttt{getAndAttachFrom(carrier)} - this method obtains the trace context from the carrier object and attaches it to the current thread. 
-	\item \texttt{getWithoutAttachFrom} - this method obtains the trace context from the carrier object without attaching it to the current thread.
-	\item \texttt{getCopyWithoutAttachFrom} - this method obtains a deep copy of trace context from the carrier object without attaching it to the current thread. It is used in cases where child spans are processes for example in parallel by multiple threads. In this case, the copy of trace context with the same ID is shared among all these threads but they operate on very own object. This is done in order to avoid different traces between the spans when processing by multiple threads.
-	\item \texttt{attachOnObject(carrier)} - this method attaches the current trace context on the carrier object without creating it and attaching it to the current thread.
-	\item \texttt{attachOnThread} - this method attaches the current trace context to the current thread.
+	\item \texttt{static create()} - creates a new trace context.
+	\item \texttt{static getFromObject(holder)} - gets the existing trace context from the holder object.
+	\item \texttt{static getFromThread(thread)} - gets the existing trace context from the specified thread.
+	\item \texttt{static getFromCurrentThread()} -  gets the existing trace context from the current thread.
+	\item \texttt{attachOnObject(holder)} - attaches the trace context to the holder object.
+	\item \texttt{attachOnThread(thread)} - attaches the trace context to the specified \newline thread.
+	\item \texttt{attachOnCurrentThread()} - attaches the trace context to the current \newline thread.
+	\item \texttt{deepCopy} - creates a deep copy of the trace context. It is usually used in cases where child spans are processes in parallel by multiple threads. In this case, the copy of trace context with the same id is shared among all these threads, but they operate on very own object. This is done in order to be able to monitor parallel spans within a single trace without having to face race conditions on a single trace context object.
 \end{itemize}
-There are also different variants how spans can be closed. Span can either closed by the same node or thread who created it. This is a simple situation and usually the methods attaching the trace context to the current thread are sufficient. It is also however possible that span can be closed by different threads or nodes then where they were initially created. In this case the copy of a trace context is usually created and attached to an object which acts as an carrier of the trace information.
+The methods above can also be chained and for example a trace context can be obtained from the holder object, deep copy created and the newly created copy attached to a new holder object.
+
+There are also different variants how spans can be closed. Span can either closed by the same node or thread who created it. In this case attaching the trace context information to the current thread is usually sufficient. It is also however possible that span can be closed by different thread or node then where it was initially created. In this case the copy of a trace context is usually created and attached to an object which acts as an carrier of the trace information.
 \section{Native Agent}
 \label{native_agent_design}
 The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main agent task is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the instrumentation server and wait for the instrumented code.
 
 The native agent consist of several parts. The most important parts are:
 \begin{itemize}
-	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]f{Implementation} chapter.
+	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]{Implementation} chapter.
 	\item \textbf{InstrumentorAPI}. \newline The \texttt{InstrumentorApi} class provides several methods which are used to communicate with the instrumentation server JVM. All the queries to the server are done via instance of this class.
 	\item \textbf{AgentCallbacks}. \newline All callbacks used in the native agent are defined in this namespace.
 	\item \textbf{AgentArgs}.  \newline The \texttt{AgentArgs} class contains all the logic required for argument parsing.
@@ -388,14 +392,16 @@ The instrumentation of the class is triggered by the agent and it's done in two 
 The server informs the agent if it does not have the bytecode for the class available and in that case  the agent sends the class to the server. The server registers the received bytecode under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
 The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the instrumented class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
 
-The code instrumentation is handled by \texttt{CustomAgentBuilder} and \texttt{BaseAgentBuilder} classes.
-The instrumentation server expects instance of \texttt{CustomAgentbuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToGeneratedClasses)} where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class which is used to define the class transformers.
+The code instrumentation is handled by \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
+The instrumentation server expects instance of \texttt{MainAgentBuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToHelperClasses)}, where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class, which is used to define the class transformers.
 
-The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors which are less verbose then the standard Byte Buddy approaches.
+The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors, which are less verbose then the standard Byte Buddy approaches.
 
-Each created transformer has to have associated `n interceptor which defines the code to be injected. Each interceptor implementation has to implement \texttt{Interceptor}  interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface.
+Each transformer has to have associated either an interceptor or advice defining the code to be injected to the original code. Each interceptor implementation has to implement \texttt{Interceptor} interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface. 
 
-Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation happens exactly as desired. The class implements four Byte Buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
+The advices may be used without any special annotations since Byte Buddy in-lines the code defined by the advices into the original code and therefore there is no need to transfer the Advice classes to monitored application.
+
+Even though Byte Buddy takes care about the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation is defined exactly as desired. The class implements four Byte Buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
 \begin{itemize}
 	\item \texttt{onTransformation} listener is called immediately before the class is instrumented.  Implementation of the listener in the thesis also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
 	\item \texttt{onIgnored} listener is called when the class is not instrumented. The class is not instrumented when the user does not define any transformer for the specified class.
