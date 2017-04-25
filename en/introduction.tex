@@ -15,7 +15,7 @@ Main requirements for the platform are:
 \begin{itemize}
 	\item \textbf{Small Footprint} \newline
 	 The mentioned cluster monitoring tools can affect the application performance and memory consumption since they perform instrumentation in the same virtual machine as the monitored application. The project is required to have a minimal footprint on the monitored application. The instrumentation is needed in order to inject special information about spans to the application's code, where spans are structures used to collect the shared state between the application nodes. This information is later used for span collection and associating the relationships between spans.
-	\item \textbf{Application-level Transparency and Universality} \newline
+	\item \textbf{Transparency and Universality} \newline
 	These two requirements are contradictory to each other. The universal tool which could be used for monitoring of majority of applications would either collect just basic information shared about all applications or the user would be required to manually specify the information to be collected specific to the application, which leads to loose of the application-level transparency. This tool tries to find a compromise between these two goals and attempts to support high-level of universality with minimizing the impact on the application itself.
 	The project needs to do some trade-offs between the application-level transparency and the universality of the platform. The goal is to be able to instrument JVM-based applications to minimize the impact on the application's code itself.
 	\item \textbf{Easiness of Use} \newline
