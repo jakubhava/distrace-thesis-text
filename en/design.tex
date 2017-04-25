@@ -338,7 +338,7 @@ The native agent accepts several arguments which can be used to affect the agent
 	\item \textbf{log\_dir} - specifies the log directory for the agent and when running in local server mode, specifies the log directory for the server as well.
 	\item \textbf{log\_level} - specifies the log level for the agent and when running in local server mode, specifies the log level for the server as well.
 	\item \textbf{saver} - specifies the span saver type. The value can be either \texttt{directZipkin(ip:port)} where ip:port is address of the Zipkin UI interface or \texttt{disk(destination)} where destination sets the output directory for the captured spans. Custom span savers are supported as well. In that case the format of the value is a fully qualified name of the span saver with arguments in parenthesis, for example as \texttt{com.span.saver(arguments)}
-	\item \textbf{config\_file} - specifies path to a configuration file containing the agent configuration. It can contain all arguments mentioned above, each argument per one line of the configuration file.
+	\item \textbf{config\_file} - specifies path to a configuration file containing the agent configuration. It can contain all arguments mentioned above, except the configuration file argument. Argument entries in the configuration file are in the format \texttt{arg=value} and each entry is on a new line of the configuration file. 
 \end{itemize}
 
 \section{Instrumentation Server}
