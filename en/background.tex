@@ -63,7 +63,7 @@ The instrumented application is responsible for creating valid traces. For that 
 	\item \textbf{Zipkin Query Service} \newline
 	This component acts as a query daemon allowing the user to query various information about spans using simple JSON API.
 	\item \textbf{Web UI} \newline
-	A basic, but very useful user interface. It allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format.
+	A basic, but very useful user interface, which allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format. By default, it is available on port 9411.
 \end{itemize}
 The Zipkin Web UI is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in section 4.6 \hyperref[sec:zipkin_ui]{Zipkin UI} of \hyperref[chap:design]{Design} chapter.
  \section{HTrace}
