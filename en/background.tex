@@ -65,7 +65,7 @@ The instrumented application is responsible for creating valid traces. For that 
 	\item \textbf{Web UI} \newline
 	A basic, but very useful user interface, which allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format. By default, it is available on port 9411.
 \end{itemize}
-The Zipkin Web UI is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in section 4.6 \hyperref[sec:zipkin_ui]{Zipkin UI} of \hyperref[chap:design]{Design} chapter.
+The Zipkin Web UI is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in the Section \ref{sec:zipkin_ui}.
  \section{HTrace}
  \label{htrace}
  HTrace\footnote{The project is available at \url{https://github.com/cloudera/htrace}.} is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. Htrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
@@ -137,7 +137,7 @@ Flame charts can be created in a few simple steps, but it depends on the type of
 
 The purpose of this really short section is just to introduce the idea of Flame graphs because it's one of the future plans to add support for flame graphs into the Distrace monitoring tool developed in the scope of this thesis. For more information about the flame charts please visit the Brendan Gregg's blog\footnote{The blog is available at \url{http://www.brendangregg.com/flamegraphs.html}.}.
 \section{Byte Code Manipulation Libraries}
-Distrace highly depends on the Java bytecode instrumentation and this section gives an overview of four bytecode manipulation libraries considered to be used at the thesis: Javassist, Byte Buddy, CGlib and ASM. Since it's a core feature of the whole platform and affects both the performance and the usability of the tool, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following chapter 3 \hyperref[analysis]{Analysis}.
+Distrace highly depends on the Java bytecode instrumentation and this section gives an overview of four bytecode manipulation libraries considered to be used at the thesis: Javassist, Byte Buddy, CGlib and ASM. Since it's a core feature of the whole platform and affects both the performance and the usability of the tool, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following Chapter \ref{analysis}.
 
 \subsection{ASM}
 \label{asm}
