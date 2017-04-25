@@ -50,7 +50,7 @@ The other alternative solution was based on the idea of running multiple Java Vi
 The selection of the tool used for the communication between the native agent and the instrumentation server was also important decision and \hyperref[nanomsg]{NanoMsg} has been chosen. It hides the platform specific aspects of sockets comparing to \hyperref[raw_sockets]{Raw Sockets} approach. It has also several performance benefits and general improvements over the well-known \hyperref[zeromq]{ZeroMq} library such as the better threading and more sophisticated implementation of the zero-copy technique. The mappings of this library for Java and C++ languages mentioned in the \hyperref[nanomsg]{Nanomsg} section were also perfect fit into the tool.
 		
 
-\section{Application-Level \newline Transparency and Universality}
+\section{Application-Level Transparency and Universality}
 On of the most important goals of the thesis is to achieve high level of application transparency while ensuring the tool universality. Each of these two requirements directly affects the second one and therefore the compromise between these two has been found.
 
 
