@@ -105,7 +105,53 @@ In order to be able to capture the relationships between tasks and their computa
 
 For all of the pairs above, the Advice API is used for instrumentation because it's sufficient to be able to capture just method entered and method exit events. In case we would like to instrument more complex cases, we could use Interceptors API which is described in the Byte Buddy documentation and briefly also in the Section \ref{sec:byte_buddy}.
 
+Instrumenting the methods is technical tasks and the code can be seen in the example. The trace context information is always attached to the tasks transferred. The trace context is initially created during the \texttt{dfork} method call, since it's the main entry point of the computation. When instrumenting \texttt{compute2} and \texttt{setupLocal0} methods, the deep copy of trace context is attached to the transferred task as the \texttt{onComplete} method is usually called from different thread and this ensures there are no collisions and multiple objects accessing the same trace context.
 
+Also, when instrumenting a few of the mentioned methods we need to ensure that correct pairs of spans are created. For this purpose we use support for flags on the \texttt{Span} class. Flags allow us to attach additional information to trace context which may be used at the closing side of the span. This is for example useful in cases when a method is used to close several spans at the same time and we need to properly distinguish between the spans.
+
+Once all the advices or onterceptors are created we need to create corresponding transformers which define the association between the method in the monitored application and the method used for the instrumentation. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer defining instrumentation of \texttt{call} and \texttt{response} method looks like:
+
+\begin{lstlisting}[language=Java]
+new BaseTransformer() {
+@Override
+public DynamicType.Builder<?> 	defineTransformation(
+	DynamicType.Builder<?> builder) {
+
+	Method call = ReflectionUtils.getMethod(RPC.class, "call");
+
+	return builder.visit(Advice.to(RPCAdvices.call.class).on(is(call))).
+	visit(Advice.to(RPCAdvices.response.class).on(named("response")));
+}
+});
+\end{lstlisting}
+
+
+Once all transformers are defined, we need to associate the transformers with the classes from the application on which they should operate and also create a main entry point of the extended instrumentation server we just created. This is demonstrated on the following code snippet:
+
+\begin{lstlisting}[language=Java]
+ public static void main(String args[]) {
+	new Instrumentor().start(args, new MainAgentBuilder() {
+		@Override
+		public AgentBuilder createAgent(
+			BaseAgentBuilder builder,
+			String pathToHelperClasses) {
+	 		 
+			return builder.type(isSubTypeOf(MRTask.class))
+			.transform(mrTaskTransformer)
+			.type(is(RPC.class))
+			.transform(rpcTransformer)
+	         }
+	  });
+}			 
+\end{lstlisting}
+It can be seen in this code that we are starting the instrumentation server using the API provided by the core instrumentation server with the \texttt{MainAgentBuilder} instance. This instance is later used as a dispatcher of instrumentation of the whole application.
+
+Later when starting the application with the attached native agent and configuring the agent, we need to explicitly specify the class, which is used as the main entry point. This is exactly the class containing the \texttt{main} method with the content above.
+
+Now we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H\textsubscript{2}O application sources. The first dependency is obvious as we are using the API defined in the library. The second library is required since we used several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify the class to be instrumented for example by its name as \texttt{named("fully.qualified.class.name)} instead of \texttt{is(Example.class)}. The second option however gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located in the instrumentor and when they are requested to be instrumented, their original bytecode don't have to be sent from the native agent. 
+
+After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
+The H\textsubscript{2}O nodes can be started as
 
 \section{Interpreting the Results}
