@@ -166,7 +166,16 @@ In case of this example, we will let the native agent to start the instrumentati
 Therefore, the full command starting H\textsubscript{2}O with the monitoring agent enabled can look be : \newline
 \texttt{java -agentpath:"/home/agent.so=instrumentor\_server\_jar=\newline/home/instrumentor.jar;instrumentor\_main\_class=main.entry.pint" \newline-jar h2o.jar -name cluster\_name}
 
-In order to start the cluster of size three, we need to call this command three times, two times with the regular H\textsubscript{2}O node and once with the H\textsubscript{2}O node containing the execution of the \texttt{SumMRTask}.
+In order to start the cluster of size three, we need to call this command three times, two times with the regular H\textsubscript{2}O node and once with the H\textsubscript{2}O node containing the execution of the \texttt{SumMRTask}. It is also important to start the Zipkin user interface to which the results are published. The user interface server may be started as: \texttt{java -jar zipkin.jar}, where the JAR file may be downloaded from the Zipkin Github page\footnote{Code of Zipkin UI is hosted at \url{https://github.com/openzipkin/zipkin}.}.
+\section{The Results}
+Once all three nodes have been started, the computation starts and the results based on our instrumentation will be shown directly in the Zipkin user interface. By default, the user interface is available at port 9411.
 
-Once all three nodes have been started, the computation starts and the results based on our instrumentation will be shown directly in the Zipkin user interface.
-\section{Interpreting the Results}
+We need to click on the \textit{Find Traces} button to show all traces, which satisfy the search conditions. We should see in the output a single trace and once we click on it, we should see similar result to the one on the Figure \ref{h2o_zipkin_output}. This figure shows just portion of the whole trace, but contains the important observed information.
+	\begin{figure}
+		\centering
+		\includegraphics[scale=0.4]{h2o_zipkin_output.png}
+		\caption{Example trace from the distributed computation on H\textsubscript{2}O}
+		\label{h2o_zipkin_output}
+	\end{figure}
+
+All the operations and their timing can be seen on the output and we can see how long each operation lasted and when it started. The spans are also organized hierarchically as they were created. We can see the main span encapsulating the whole computation, the spans for computation on each node and also spans encapsulation the remote computations. The local \texttt{map} and \texttt{reduce} calls are displayed as well. It is, for example, interesting to see how long it took the platform to perform the \texttt{reduce} operation after the \texttt{map} operation has been called.
