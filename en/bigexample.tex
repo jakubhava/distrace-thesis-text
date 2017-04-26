@@ -152,6 +152,20 @@ Now we need to build the extended instrumentation server. This server has two de
 
 After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
-The H\textsubscript{2}O nodes can be started as
+We the purposes of this example, we will start a cluster of three H\textsubscript{2}O nodes. Two nodes will be the regular nodes and the last node will contain the main method in which we execute the the \textbf{SumMRTask}. This task is used to sum range of the numbers in distributed manner.
+
+Arbitrary H\textsubscript{2}O node can be started as: \newline \texttt{java -jar h2o.jar -name cluster\_name}\newline When operating on the network with multi-cast communication enabled multiple nodes started with the same cluster name will form a cluster.
+
+If we want to start the application with the monitoring agent attached, we can use the \texttt{-agentlib} java option. Any H\textsubscript{2}O node can be started with the monitoring feature enabled just by calling the following command: \newline
+\texttt{java -agentpath:"\$NATIVE\_AGENT\_LIB\_PATH=\$AGENT\_ARGS" -jar h2o.jar  \newline -name cluster\_name}
+
+The \texttt{\$NATIVE\_AGENT\_LIB\_PATH} shell variable should point to the location of the native agent library and \texttt{\$AGENT\_ARGS} shell variable may contain any arguments passed to the native agent. The arguments are in the format \texttt{key=value} and are separated by the semicolon.
+
+In case of this example, we will let the native agent to start the instrumentation server locally for each node automatically. Therefore, the inter-process communication will be used and we don't need to configure it explicitly. Only two arguments need to be specified - the path to the instrumentation server and the fully qualified name of the main entry class.
+
+Therefore, the full command starting H\textsubscript{2}O with the monitoring agent enabled can look be : \newline
+\texttt{java -agentpath:"/home/agent.so=instrumentor\_server\_jar=\newline/home/instrumentor.jar;instrumentor\_main\_class=main.entry.pint" \newline-jar h2o.jar -name cluster\_name}
+
+In order to start the cluster of size three, we need to call this command three times, two times with the regular H\textsubscript{2}O node and once with the H\textsubscript{2}O node containing the execution of the \texttt{SumMRTask}.
 
 \section{Interpreting the Results}
