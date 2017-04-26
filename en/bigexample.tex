@@ -87,6 +87,24 @@ To build the both parts, the developer needs to obtain the Distrace tool sources
 In order to run this example without the need to set up these dependencies, the Docker container with this example is prepared. This container creates cluster of three H\textsubscript{2}O nodes with the agents attached and also starts the Zipkin user interface on the default port. To run the example in Docker, Docker needs to be available, the projects source directory needs to be available as well\footnote{The sources are not actually needed for running the examples in docker, but the script which is used to start the docker machines is available there as well.} and the following script should be called: \texttt{./docker/run-test.sh}\footnote{On Windows, \texttt{./docker/run-test.cmd}}. For more information how to start the examples in docker, please read the readme file in the source code directory.
 
 \section{Extending the Core Instrumentation Server}
+In order to be able to capture the relationships between tasks and their computation, we need to instrument the method mentioned in the previous section. It is important to always find a good pair of methods which open and close a single span. In case of H\textsubscript{2}O the following calls have been identified to form a good spans. The pairs are ordered from the top level pairs encapsulation the whole computation up until the local spans encapsulation single mapping or reduce operations.
+
+\begin{enumerate}
+	\item \texttt{dfork} - \texttt{getResult}. This pair is used to open a main span which encapsulates the complete computation of a single \texttt{MRTask}, because \texttt{dfork} is only called on the node where the computation starts and the same holds for \texttt{getResult} on the same node after computation finished. The span is open when the first method is entered and closed when the later method is leaved.
+		
+	\item \texttt{setupLocal0} - \texttt{onCompletion}. This pair forms a span representing the complete communication on a single node. It encapsulates the local work as well as waiting for the remote work to complete in order to be able to call \texttt{reduce}. This span is opened when the first method is entered and leaved when the later method is leaved. This span is well-defined since for each task the \texttt{onCompletion} method is called and represents that the work has been finished at all children tasks.
+	
+	\item \texttt{call} - \texttt{response}. This pair forms a span used to track only remote computation. It encapsulates the remote computation and all following sub-tasks created by the remote task. This span is opened when the first method is entered and closed when the second method is leaved.
+	
+	\item \texttt{compute2} - \texttt{onCompletion}. This pair forms a span used to encapsulate computation on the local node. It encapsulates all the cases of local work. In case of multiple chunks exist for the given tasks on the same node, it is recursively called until we have tasks representing a single chunk. The calls are also recursively confirmed by the \texttt{onCompletion} call. In multi-chunk case, only one child task is submitted for execution into F/J thread. The second task is executed immediately in the same thread. This way it is ensured that we can reuse the existing threads as much as possible. This span is opened when the first method is entered and closed when the first method is leaved.
+	
+	\item \texttt{map} - \texttt{map}. This pair represents a single mapping operation. This span is entered when the \texttt{map} method is entered and closed when the \texttt{map} method is leaved. Therefore this span lasts only for duration of the \texttt{map} method call.
+	
+	\item \texttt{reduce2} - \texttt{reduce2}. This pair represents a single reduce operation. This span is entered when the \texttt{reduce2} method is entered and closed when the \texttt{reduce2} method is leaved. Therefore this span lasts only for duration of the \texttt{reduce 2} method call.
+\end{enumerate}
+
+For all of the pairs above, the Advice API is used for instrumentation because it's sufficient to be able to capture just method entered and method exit events. In case we would like to instrument more complex cases, we could use Interceptors API which is described in the Byte Buddy documentation and briefly also in the Section \ref{sec:byte_buddy}.
+
 
 \section{Configuring and Running the Application}
 
