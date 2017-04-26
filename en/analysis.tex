@@ -99,7 +99,7 @@ Desired features and properties of the thesis based on the analysis are:
 	\item Ability to collect distributed traces and spans via the instrumentation.
 	\item Native agent implemented in C++ to be attached to a Java application. The native agent is universal to all Java applications and is not supposed to be changed.
 	\item Instrumentation server implemented in Java used for the instrumentation. The instrumentation server acts as the core library, which can be extended by the application's developer for the specific application. Byte Buddy library is to be used within the server for the code transformations and definitions of the instrumentation points.
-	\item Nanomsg library is to be used as the communication layer between the native agent and instrumentation server.
+	\item Nanomsg library is to be used as the communication layer between the native agent and the instrumentation server.
 	\item Support for the Zipkin user interface. The user interface is used to visualize the collected spans.
 	\item Ability to replace the default user interface with the custom user interface.
 \end{itemize}
