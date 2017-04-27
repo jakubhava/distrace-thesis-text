@@ -29,10 +29,10 @@ The tool therefore consists of three main parts:
 \end{itemize}
 
 
-The graph \ref{fig:architecture} denotes the basic relationships between the major parts. Each part is explained in more detail later in this chapter. \begin{figure}
+The Figure \ref{fig:architecture} denotes the basic relationships between the major parts. Instrumentation server communicates with the native again mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be send either via data collection agent or one of the default span savers explained later in this chapter. Each part is explained in more detail later in this chapter. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{architecture.png}
-	\caption{Basic relationship between the major components. Instrumentation server communicates with the native again mainly in order to instrument classes. The Application's communicates with the user interface by sending the spans. Spans can be send either via data collection agent or one of the default span savers explained later in this chapter.}
+	\caption{Basic relationship between the major components. }
 	\label{fig:architecture}
 \end{figure}
 
@@ -362,7 +362,7 @@ The platform was designed to be configurable and deployment of instrumentation s
  \begin{figure}
  	\centering
  	\includegraphics[scale=0.8]{shared_server.png}
- 	\caption{Architecture with shared instrumentation server. The dotted lines represents the communication between instrumentation server and the agent whilst the regular lines represents data collection from the agent to the UI}
+ 	\caption{Architecture with shared instrumentation server. The dotted lines represents the communication between instrumentation server and the agent whilst the regular lines represents data collection from the agent to the UI.}
  	\label{fig:shared_server}
  \end{figure}
  
