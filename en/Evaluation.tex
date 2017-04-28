@@ -18,7 +18,8 @@ There are a few limitations at the moment in the thesis which we would like to a
 \section{Measuring the Tool Overhead}
 This sections measures the overhead of the Distrace tool on the H\textsubscript{2}O example. We measure how long the example run from the start to end when the agent was attached and monitoring enabled and also in the opposite case. This measurement is highly specific on the type of the example since it depends on several factors, such as number of classes being instrumented or whether we optimized the performance by adding the application classes on the instrumentation server classpath.
 
-In this measurement, we will use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the tool. We will also run  the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically.
+In this measurement, we will use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the tool. We will also run the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically. The measurements have been performed on H\textsubscript{2}O cluster of size three with 16 GB memory available and Intel Core I7 quad-core CPU.
+
 
 
 TODO: Experiment
