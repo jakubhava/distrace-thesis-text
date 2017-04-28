@@ -1,18 +1,30 @@
 \chapter{Evaluation}
 \label{chap:evaluation}
-
+This chapter firstly describes some known limitations of this tool. The further section shows the measurements of how long the application starts with and without the tracing enabled. These measurements are based on the H\textsubscript{2}O example. The final section points out the future plans of the Distrace tool.
 \section{Known Limitations}
-\subsection{Required Java version}
-Distrace requires Java 8 to be available. The platform has been tested on several Java 7 implementations and several internal Java bugs occurred. These problems are already fixed in the Java 8.
+There are a few limitations at the moment in the thesis which we would like to address in the future.
+\begin{itemize}
+	\item \textbf{ Required Java version} \newline
+	Distrace requires Java 8 to be available. The platform has been tested on several Java 7 implementations and several internal Java bugs occurred. These problems are already fixed in the Java 8. Even though Java 7 is being replaced by Java 8, it still can be seen like a limitation of this tool.
+	\item \textbf{Attaching Agent at Run-Time} \newline
+	Currently, the native agent has to be attached prior the application start using the \texttt{-agentlib} or \texttt{-agentpath} options. However, Java provides the attachment API allowing the agents to join at run-time of the application. This has the benefit that the application can be started without any additional arguments. The thesis contains the sub-project called \textbf{agent-attacher}, which is using the attachment API and attaches the agent to the running application, but currently, the agent does not perform any tasks when attached at run-time.
+	
+	The agent is disabled for this use-case since we would need to properly handle and separate the instances of instrumented classes before and after the instrumentation. It is possible that an instance of some class have been created, then, the class has been instrumented, and new instances of this class have been created. Therefore we would have instances of the same class, first instrumented and the second not. This could be problem at some applications and still needs a further investigation whether this can be allowed in general or not.
+	
+\end{itemize}
 
-\subsection{Attaching Agent at Run-Time}
+
 
 \section{Measuring the Tool Overhead}
-show how long long does it take h2o to start with and without the instrumentation tool
+This sections measures the overhead of the Distrace tool on the H\textsubscript{2}O example. We measure how long the example run from the start to end when the agent was attached and monitoring enabled and also in the opposite case. This measurement is highly specific on the type of the example since it depends on several factors, such as number of classes being instrumented or whether we optimized the performance by adding the application classes on the instrumentation server classpath.
+
+In this measurement, we will use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the tool. We will also run  the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically.
+
+
+
 \section{Future plans}
 \subsection{Additional Span Savers}
 \subsection{Support for Flame Graphs}
 
-\section{Comparison to Related Work}
-..final comparison
+
 
