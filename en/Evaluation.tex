@@ -21,10 +21,15 @@ This sections measures the overhead of the Distrace tool on the H\textsubscript{
 In this measurement, we will use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the tool. We will also run  the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically.
 
 
-
+TODO: Experiment
 \section{Future plans}
-\subsection{Additional Span Savers}
-\subsection{Support for Flame Graphs}
+This tool is planned to be extend in the future. Mainly, the tool should be improved in the following areas:
+\begin{itemize}
+\item \textbf{More Additional Span Savers} \newline
+Currently, the tool provides two default span savers and allows the user to extend the \texttt{SpanSaver} abstract class and implement custom span savers. However, we would like to create more savers in the future which would be able to store spans into different storage types and also in different formats. At this moment, the output is in the JSON format understandable to the Zipkin user interface and the data are saved either to disk or are send to the user interface right away. We could for example create a span saver, which could save the span into a database from which the arbitrary user interface could fetch the data.
+\item \textbf{Support for Flame Graphs} \newline
+The second future plan is to add support for flame charts. The native agent could be used to capture the stack-traces of the running application and later, a flame graph representing the distributed computation could be created. For example, this integration would give us the ability to inspect the memory-usage or performance cluster-vise using the flame graphs visualizations.
+\end{itemize}
 
 
 
