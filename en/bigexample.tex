@@ -5,7 +5,7 @@ This chapter demonstrates how Distrace can be used on bigger example and also se
 This example is based on the H\textsubscript{2}O\footnote{More information about H\textsubscript{2}O can be found on \url{https://www.h2o.ai} and \url{https://github.com/h2oai}} open-source fast scalable machine learning platform. This platform supports various methods for building machine learning models, methods such as deep learning, gradient boosting or random forests. The core of the tool is written in Java and clients for different languages exist as well. Internally, H\textsubscript{2}O is using map-reduce computation paradigm\footnote{Map-reduce is a programming model in distributed systems. The basic idea is to split tasks into smaller parts and perform the map operations. The intermediate results are then combined together using the reduce calls until the complete result has been assembled from all the sub-tasks.} to perform various tasks across the cluster.
 
 The goal of this example is to monitor subset of map-reduce tasks and see visualization of the computation process. This can help reasoning about performance of the platform and can discover unwanted delays in computations. This chapter first describes relevant parts of the H2O platform in more details. Then in the following sections we describe in steps how to extend the core instrumentation library for H2O purposes. Lastly, we show how this example can be started and how visual output can be interpreted. 
-This full example is also available in the attached source code of the thesis.
+This full example is also available in the attached source code of the thesis in the first attachment. More examples are available and the list and instructions on how they can be run is in the second attachment.
 
 \section{H\textsubscript{2}O In More Details}
 H\textsubscript{2}O is in-memory machine learning platform. The computations are performed in cluster, where the cluster consists of several H2O nodes. All nodes in the cluster are equal and each of them can initialize the computation. Each computation is performed as a map-reduce. This section first describes the format of data used in H2O and how data are stored and then how the computations is performed in the cluster. 
@@ -80,11 +80,9 @@ We are also interested how long the remote computation lasted on child nodes. Fo
 \end{itemize}
 
 \section{Building the Core Server and Native Agent}
-In order be able to extend the core instrumentation library, we need to build it first. This won't be necessary once the core instrumentation server is published to some online repository of JAR packages\footnote{For example, Maven Central Repository.} The native agent also needs to be built on the platfrom where H\textsubscript{2}O will be running.
+In order be able to extend the core instrumentation library, we need to build it first. This won't be necessary once the core instrumentation server is published to some online repository of JAR packages\footnote{For example, Maven Central Repository.} The native agent also needs to be built on the platfrom where H\textsubscript{2}O will be running. 
 
-To build the both parts, the developer needs to obtain the Distrace tool sources\footnote{Distrace is available at \url{https://github.com/jakubhava/Distrace}.} and call \texttt{./gradlew build}\footnote{On Windows, \texttt{./gradlew.bat build}} command, which builds the tool and produces artifacts for the core instrumentation server and the native agent as well. The build process requires several dependencies to be available on the machine such as Java virtual machine and Nanomsg and Nanomsgxx libraries.
-
-In order to run this example without the need to set up these dependencies, the Docker container with this example is prepared. This container creates cluster of three H\textsubscript{2}O nodes with the agents attached and also starts the Zipkin user interface on the default port. To run the example in Docker, Docker needs to be available, the projects source directory needs to be available as well\footnote{The sources are not actually needed for running the examples in docker, but the script which is used to start the docker machines is available there as well.} and the following script should be called: \texttt{./docker/run-test.sh}\footnote{On Windows, \texttt{./docker/run-test.cmd}}. For more information how to start the examples in docker, please read the readme file in the source code directory.
+Please see the Attachment 3 for the information on how to build the project from sources or how to run this example from the prepared Docker machine. 
 
 \section{Extending the Core Instrumentation Server}
 In order to be able to capture the relationships between tasks and their computation, we need to instrument the method mentioned in the previous section. It is important to always find a good pair of methods which open and close a single span. In case of H\textsubscript{2}O the following calls have been identified to form a good spans. The pairs are ordered from the top level pairs encapsulation the whole computation up until the local spans encapsulation single mapping or reduce operations.
@@ -152,18 +150,18 @@ Now we need to build the extended instrumentation server. This server has two de
 
 After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
-We the purposes of this example, we will start a cluster of three H\textsubscript{2}O nodes. Two nodes will be the regular nodes and the last node will contain the main method in which we execute the the \textbf{SumMRTask}. This task is used to sum range of the numbers in distributed manner.
+For the purposes of this example, we will start a cluster of three H\textsubscript{2}O nodes. Two nodes will be the regular nodes and the last node will contain the main method in which we execute the the \textbf{SumMRTask}. This task is used to sum range of the numbers in distributed manner.
 
 Arbitrary H\textsubscript{2}O node can be started as: \newline \texttt{java -jar h2o.jar -name cluster\_name}\newline When operating on the network with multi-cast communication enabled multiple nodes started with the same cluster name will form a cluster.
 
 If we want to start the application with the monitoring agent attached, we can use the \texttt{-agentlib} java option. Any H\textsubscript{2}O node can be started with the monitoring feature enabled just by calling the following command: \newline
 \texttt{java -agentpath:"\$NATIVE\_AGENT\_LIB\_PATH=\$AGENT\_ARGS" -jar h2o.jar  \newline -name cluster\_name}
 
-The \texttt{\$NATIVE\_AGENT\_LIB\_PATH} shell variable should point to the location of the native agent library and \texttt{\$AGENT\_ARGS} shell variable may contain any arguments passed to the native agent. The arguments are in the format \texttt{key=value} and are separated by the semicolon.
+The \texttt{\$NATIVE\_AGENT\_LIB\_PATH} needs to point to the location of the native agent library and \texttt{\$AGENT\_ARGS} shell variable may contain any arguments passed to the native agent. The arguments are in the format \texttt{key=value} and are separated by the semicolon.
 
 In case of this example, we will let the native agent to start the instrumentation server locally for each node automatically. Therefore, the inter-process communication will be used and we don't need to configure it explicitly. Only two arguments need to be specified - the path to the instrumentation server and the fully qualified name of the main entry class.
 
-Therefore, the full command starting H\textsubscript{2}O with the monitoring agent enabled can look be : \newline
+Therefore, the full command starting H\textsubscript{2}O with the monitoring agent enabled can be : \newline
 \texttt{java -agentpath:"/home/agent.so=instrumentor\_server\_jar=\newline/home/instrumentor.jar;instrumentor\_main\_class=main.entry.pint" \newline-jar h2o.jar -name cluster\_name}
 
 In order to start the cluster of size three, we need to call this command three times, two times with the regular H\textsubscript{2}O node and once with the H\textsubscript{2}O node containing the execution of the \texttt{SumMRTask}. It is also important to start the Zipkin user interface to which the results are published. The user interface server may be started as: \texttt{java -jar zipkin.jar}, where the JAR file may be downloaded from the Zipkin Github page\footnote{Code of Zipkin UI is hosted at \url{https://github.com/openzipkin/zipkin}.}.

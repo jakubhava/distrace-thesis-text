@@ -134,7 +134,7 @@ The main goal of this thesis is to create a monitoring platform and library that
 
 %%% Abbreviations used in the thesis, if any, including their explanation
 %%% In mathematical theses, it could be better to move the list of abbreviations to the beginning of the thesis.
-\chapwithtoc{List of Abbreviations}
+
 
 %%% Attachments to the master thesis, if any. Each attachment must be
 %%% referred to at least once from the text of the thesis. Attachments
@@ -147,7 +147,71 @@ The main goal of this thesis is to create a monitoring platform and library that
 %%% source code, data files, interactive charts, etc.). Electronic attachments
 %%% should be uploaded to SIS and optionally also included in the thesis on a~CD/DVD.
 
-%\chapwithtoc{Attachments}
-
+\chapwithtoc{Attachments}
+\begin{enumerate}
+	\item Attachment 1: CD with the source codes of the Distrace tool.
+	\item Attachment 2: List of examples available in Docker and instructions on how to run them.
+	\item Attachment 3: Instructions on how to build and run
+	\item Attachment 4: Native agent arguments
+	\end{enumerate}
 \openright
+
+\setcounter{page}{1}
+\chapter*{Attachment 2: List of Examples}
+The source code of the thesis contains several examples. They can be run manually by first compiling the sources and then starting using the provided scripts. The examples are also available in the provided Docker machine. This docker machine contains all compile and run-time dependencies for the tool to be able to run and examples can be run in this machine as well.
+
+The list of available examples:
+\begin{enumerate}
+	\item \textbf{DependencyInstrumentation} \newline
+	This example just demonstrates the basic instrumentation functionality on dependent classes. It does not have any output do the user interface.
+	\item \textbf{H2OSumMRTask} \newline
+	This larger example demonstrates the tool on the H\textsubscript{2}O  machine learning platform. The cluster of three H\textsubscript{2}O  nodes is started and simple map-reduce tasks is executed within this cluster. The internals of map-reduce task are monitored and the associated spans are shown in the Zipkin user interface.
+	\item \textbf{SingleJVMCallback} \newline
+	This example demonstrates how the Distrace tool can be used to instrument and monitor the the callbacks. This example is using only a single JVM with multiple threads.
+	\item \textbf{SingleJVMThread} \newline
+	This example shows how thread can be instrumented in monitored. This example is running on a single JVM with multiple threads.
+\end{enumerate}
+
+\setcounter{page}{1}
+\chapter*{Attachment 3: Building And Running}
+To build both, the native agent and the core instrumentation server, the developer needs to obtain the Distrace tool sources\footnote{Distrace is available at \url{https://github.com/jakubhava/Distrace}.} and call \texttt{./gradlew build}\footnote{On Windows, \texttt{./gradlew.bat build}} command, which builds the tool and produces artifacts for the core instrumentation server and the native agent as well. The build process requires several dependencies to be available.
+
+The instrumentation server requires Java 8 to be available. It has dependencies on several libraries, but these are downloaded automatically by the build process.
+
+The native agent depends on several libraries which needs to be availalable on the system:
+\begin{itemize}
+	\item Boost-filesystem
+	\item Boost-system
+	\item Nanomsg
+	\item Nanomsgxx
+	\item Cmake
+\end{itemize}
+The last dependency is required to be able to build the native agent project. Any C++11 compliant compiler needs to be available as well.
+
+Once the artifacts are build the user may extend the core instrumentation server with the instrumentation definition. The application can be further run using the following incantation:
+
+\texttt{java -agentpath:"\$NATIVE\_AGENT\_LIB\_PATH=\$AGENT\_ARGS" -jar app.jar}
+
+The \texttt{\$NATIVE\_AGENT\_LIB\_PATH} shell variable should point to the location of the native agent library and \texttt{\$AGENT\_ARGS} shell variable may contain any arguments passed to the native agent. The arguments are in the format \texttt{key=value} and are separated by the semicolon. Please see the Attachment 4 for the full list of available native agent arguments.
+
+\section{Running Docker Examples}
+ In order to run this example without the need to set up all dependencies, the Docker container with this example is prepared. This container contains all Distrace dependencies and when started, is also automatically starts the Zipkin user interface on the default port. To run any example in Docker, Docker needs to be available, the projects source directory needs to be available as well\footnote{The sources are not actually needed for running the examples in docker, but the script which is used to start the docker machines is available there as well.} and the following script should be called: \texttt{./docker/run-test.sh}\footnote{On Windows, \texttt{./docker/run-test.cmd}}. 
+ 
+Both these scripts expect a single argument representing the example name. When this argument is missing, the list of available examples is printed to the console.
+\setcounter{page}{1}
+\chapter*{Attachment 4 : Native Agent Arguments}
+\setcounter{page}{1}
+The native agent accepts several arguments which can be used to affect the agent behavior. In local instrumentation server mode, several arguments affect also the sever started from the agent. Available arguments are:
+\begin{itemize}
+	\item \textbf{instrumentor\_server\_jar} - specifies the path to the instrumentation server JAR. It is a mandatory argument in case the instrumentation server is supposed to run per each node of monitored application.
+	\item \textbf{instrumentor\_server\_cp} - specifies the classpath for the instrumentation server. It can be used to add application specific classes on the server classpath which has the effect that the monitored application does not have to send to the server these classes if they need to be instrumented or if some class to be instrumented depends on them.
+	\item \textbf{instrumentor\_main\_class} - specifies the main entry point for the instrumentation server. It is a required argument in case of local instrumentation server mode.
+	\item \textbf{connection\_str} - specifies the type of connection between native agent and the instrumentation server. It is a mandatory argument in shared instrumentation server mode in which case the value is in format \texttt{tcp://ip:port} where ip:port is address of the instrumentation server. Otherwise, the agent and server communicates via inter-process communication and the argument can be set in format \texttt{ipc://identifier} where identifier specifies the name of pipe in case of Windows and name of the file used for IPC in case of Unix. However this value is set automatically at run-time if not explicitly specified as an argument.
+	\item \textbf{log\_dir} - specifies the log directory for the agent and when running in local server mode, specifies the log directory for the server as well.
+	\item \textbf{log\_level} - specifies the log level for the agent and when running in local server mode, specifies the log level for the server as well.
+	\item \textbf{saver} - specifies the span saver type. The value can be either \newline \texttt{directZipkin(ip:port)} where \texttt{ip:port} is address of the Zipkin user interface or \texttt{disk(destination)}, where destination represents the output directory for the captured spans. Custom span savers are supported as well. In that case, the format of the value is a fully qualified name of the span saver with arguments in parenthesis, for example as \texttt{com.span.saver(arguments)}
+	\item \textbf{class\_output\_dir} - specifies the output directory for several helper classes received from the instrumentation server. This value is automatically set if not configured explicitly.
+	\item \textbf{config\_file} - specifies path to a configuration file containing the agent configuration. It can contain all arguments mentioned above, except the configuration file argument. Argument entries in the configuration file are in the format \texttt{arg=value} and each entry is on a new line of the configuration file. 
+\end{itemize}
+
 \end{document}
