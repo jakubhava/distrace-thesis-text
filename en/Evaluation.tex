@@ -20,9 +20,78 @@ This sections measures the overhead of the Distrace tool on the H\textsubscript{
 
 In this measurement, we will use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the tool. We will also run the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically. The measurements have been performed on H\textsubscript{2}O cluster of size three with 16 GB memory available and Intel Core I7 quad-core CPU.
 
+The following Table \ref{bench1} contains numbers in seconds how long it took to start the whole cluster of size 3, with and without the instrumentation enabled.
 
+\begin{center}
+	\begin{tabular}{ l l l }
+		\hline
+		Run Number & Monitoring off & Monitoring on \\ \hline
+1 & 37,378s	& 40,912s	\\
+2 & 30,699s & 50,104s	\\
+3 & 36,902s & 45,844s	\\
+4 & 36,709s	& 46,502s	\\
+5 & 31,063s	& 47,503s	\\
+6 & 30,799s &	50,440s	\\
+7 & 36,799s &	44,695s	\\
+8 & 37,358s	& 50,504s	\\
+9 & 37,844s	& 47,444s	\\
+10 & 36,969s	& 44,909s	\\
+  \hline  
+\textbf{average} & \textbf{35,252s} & \textbf{46,886s} \\
+	\end{tabular}
+	\captionof{table}{First measuremnt.}\label{bench1}
+\end{center}
+We can see that in this case the average run time with monitoring enabled is on average 10 seconds slower. This can be explained as the overhead of starting the instrumentation server from the native agent on a single machine for all three H\textsubscript{2}O nodes in the cluster.
 
-TODO: Experiment
+The following Table \ref{bench2} shows how long the only the computation of the  first map-reduce tasks lasted with monitoring enabled and disabled.
+
+\begin{center}
+	\begin{tabular}{ l l l }
+		\hline
+		Run Number & Monitoring off & Monitoring on \\ \hline
+1	&12,232s&	16,810s  \\ 
+2 	&12,359s &	14,467s \\ 
+3	&12,293s &	15,681s \\ 
+4	&12,331s &	13,196s \\ 
+5	&12,229s &	11,055s \\ 
+6	&12,360s &	15,037s \\ 
+7 &	11,867s	&11,839s  \\ 
+8	 &	12,399s &17,246s  \\ 
+9&	12,256s 	&11,088s  \\ 
+10	&12,323s &	15,500s \\ 
+
+		\hline  
+		\textbf{average} & \textbf{12,265} & \textbf{14,192} \\
+	\end{tabular}
+	\captionof{table}{Second measurement.}\label{bench2}
+\end{center}
+
+The overhead in case  the monitoring is enabled is caused by the instrumentation of the classes when they are first needed. We can also see that the variety is higher in when instrumentation is enabled. This may be explained as the variety in transferring the classes between the instrumentation server and the agent.
+
+Lastly, the final Table \ref{bench3} shows how long each subsequent computation run, also in case when monitoring is enabled and disabled. This means that we omit the first map-reduce task computation and measure only following calls when all instrumentation has already finished for the required classes.
+\begin{center}
+	\begin{tabular}{ l l l }
+		\hline
+		Run Number & Monitoring off & Monitoring on \\ \hline
+1&	2,025s&	3,279s \\ 
+2&	2,025s&	4,143s \\
+3&	2,030s	&3,153s \\
+4&	1,079s&	4,225s \\
+5&	1,025s&	3,653s \\
+6&	1,071s	&3,367s \\
+7	&0,990s&	3,055s \\
+8&	1,064s	&2,659s \\
+9&	0,264s&	3,254s \\
+10&	0,999s&	2,721s \\
+
+\hline  
+\textbf{average} & \textbf{1,257} & \textbf{3,351} \\
+\end{tabular}
+\captionof{table}{Third measurement.}\label{bench3}
+
+\end{center}
+
+We can therefore see that there is still overhead by the introduced tool, but not significant. This is overhead is caused because we are doing some extra work introduced by the instrumentation such as checking whether we are closing the correct span or saving the span.
 \section{Future plans}
 This tool is planned to be extend in the future. Mainly, the tool should be improved in the following areas:
 \begin{itemize}

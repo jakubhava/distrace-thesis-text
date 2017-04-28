@@ -353,7 +353,7 @@ As mentioned above, there are several events sent from the observed Java applica
 Java Native Interface is a framework allowing Java code running in Java Virtual Machine to call native applications ( usually written in C or C++ ). It also allows native applications to access and call Java methods. All JNI operations require instance of class \texttt{JNIEnv} to be available. This environment is always bound to a specific thread and manages the connection to the Java virtual machine. When calling a Java method from the native application, the correct method has to be first found. This is achieved by specifying the types and method signature of the method.
 \subsubsection{Java Types Mapping}
 For each Java primitive type there is a corresponding native type in JNI. Native types always start with the \textbf{j} as the prefix, for example \texttt{boolean} is a Java type whereas \texttt{jboolean} as a native type.
-All other JNI reference types are referred to via \texttt{jobject} class. This means that Java arrays are accessed as \texttt{jobject} as well since at this level they are referred to as Java objects. The most important question is how the types in method signatures can be specified. There is a mapping assigning each type a signature, which is used exactly for this purpose. The following table is based on the JNI documentation\footnote{The original and more complete documentation for JNI types mapping is available at \url{http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html}.}. and describes the mapping in detail:
+All other JNI reference types are referred to via \texttt{jobject} class. This means that Java arrays are accessed as \texttt{jobject} as well since at this level they are referred to as Java objects. The most important question is how the types in method signatures can be specified. There is a mapping assigning each type a signature, which is used exactly for this purpose. The following Table \ref{mapping_jni} is based on the JNI documentation\footnote{The original and more complete documentation for JNI types mapping is available at \url{http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html}.}. and describes the mapping in detail:
 \begin{center}
 \begin{tabular}{ l l }
 	  \hline
@@ -369,6 +369,7 @@ All other JNI reference types are referred to via \texttt{jobject} class. This m
 	{[} type & type{[]}\ \\
 	( arg-types ) ret-type & method type \\
 \end{tabular}
+\captionof{table}{Mapping type signatures to Java types.}\label{mapping_jni}
 \end{center}
 
 For example, the method: \newline \texttt{xx.yy.Person foo(int n; boolean[] arr, String s);} has the following signature:
