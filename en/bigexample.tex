@@ -29,7 +29,7 @@ For example, when the user tells H2O to create a deep learning model based in th
 
 In more detail, the class \texttt{MRTask} extends from \texttt{DTask}. This class is a general class used in H\textsubscript{2}O to represent task remote executed. Further, \texttt{DTask} extends from \texttt{H2OCountedCompleter}. The last class is a simple wrapper around the Fork/Join execution framework\footnote{For more information, please read Java documentation for Fork/Join framework available at \url{https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html}.} allowing the platform to prioritize tasks. Fork/Join (F/J) framework is an implementation of Java \texttt{ExecutorService}, which helps with job parallelization on multiple processors. The Fork/Join thread framework execute tasks in separated threads and can move tasks between threads to ensure the highest possible performance. Each H\textsubscript{2}O \texttt{MRTask} is executed as \texttt{ForkJoinTask} inside this execution framework. A \texttt{ForkJoinTask} is a task wrapper which can run inside a single thread. It is a light-weight wrapper and big number of tasks may be served by a smaller number of actual threads.
 
-The way how H\textsubscript{2}O perform computation from high-level point of view can be seen on the Figure \ref{fig:h2o_overview}. The task initiator receives the \texttt{MRTask} from the parent \texttt{Job} or from the user. It splits the task into two new sub-tasks and send these tasks to new nodes in the cluster. The intermediary nodes does the the splitting again and sends the task again to the another two selected nodes in the cluster. The leaf nodes does not split the task anymore.
+The way how H\textsubscript{2}O perform computation from high-level point of view can be seen on the Figure \ref{fig:h2o_overview}. The task initiator receives the \texttt{MRTask} from the parent \texttt{Job} or from the user. It splits the task into two new sub-tasks and send these tasks to new nodes in the cluster. The intermediary nodes does the splitting again and sends the task again to the another two selected nodes in the cluster. The leaf nodes does not split the task anymore.
 
 	\begin{figure}
 		\centering
@@ -51,7 +51,7 @@ The computation on the single node is shown in the following pseudo-code
  H2O.submitTask(task) // submit this task into F/J
 ..
 // task is taken from F/J for execution
-task.map(..)
+task.mparallelizationap(..)
 task.waitForComplete() // wait for the child tasks to finish
 task.reduce(left, right)
 
@@ -59,7 +59,7 @@ notifyComplete(task) // notify parent of completion
 \end{lstlisting}
 The split method accept also indices representing nodes in the cluster on which this sub-task and further sub-sub-tasks may be executed.
 
-The last missing piece of information is what is done when the node has more chunks available for the frame associated with the task, since each \texttt{map} operation is executed only per single chunk. In case the node has multiple chunks available for the frame, the node always locally submits two new tasks into the F/J framework, each having half of the chunks. This is recursively repeated until we have tasks of size one chunk which are processed normally. These locally-split tasks signalize to their parents that they are done. This signalization goes up the tree until the original task is marked finished.
+The last missing piece of information is what is done when the node has more chunks available for the frame associated with the task, since each \texttt{map} operation is executed only per single chunk. In case the node has multiple chunks available for the frame, the node always locally submits two new tasks into the F/J framework, each having half of the chunks. This is recursively repeated until we have tasks of size one chunk which are processed normally. These locally-split tasks inform their parents that they are done. This signalization goes up the tree until the original task is marked finished.
 
 \subsection{Methods for Instrumentation}
 For purpose of this example, a special \texttt{MRTask} called \texttt{SumMRTask} has been created. This task just perform distributed sum of the range of the numbers. In order to be able to visualize the computation process of this task, the following \texttt{MRtask} methods are important for the instrumentation
@@ -80,7 +80,7 @@ We are also interested how long the remote computation lasted on child nodes. Fo
 \end{itemize}
 
 \section{Building the Core Server and Native Agent}
-In order be able to extend the core instrumentation library, we need to build it first. This won't be necessary once the core instrumentation server is published to some online repository of JAR packages\footnote{For example, Maven Central Repository.} The native agent also needs to be built on the platfrom where H\textsubscript{2}O will be running. 
+In order be able to extend the core instrumentation library, we need to build it first. This won't be necessary once the core instrumentation server is published to some online repository of JAR packages\footnote{For example, Maven Central Repository.} The native agent also needs to be built on the platform where H\textsubscript{2}O will be running. 
 
 Please see the Attachment 3 for the information on how to build the project from sources or how to run this example from the prepared Docker machine. 
 
@@ -107,7 +107,7 @@ Instrumenting the methods is technical tasks and the code can be seen in the exa
 
 Also, when instrumenting a few of the mentioned methods we need to ensure that correct pairs of spans are created. For this purpose we use support for flags on the \texttt{Span} class. Flags allow us to attach additional information to trace context which may be used at the closing side of the span. This is for example useful in cases when a method is used to close several spans at the same time and we need to properly distinguish between the spans.
 
-Once all the advices or onterceptors are created we need to create corresponding transformers which define the association between the method in the monitored application and the method used for the instrumentation. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer defining instrumentation of \texttt{call} and \texttt{response} method looks like:
+Once all the advice or interceptors are created, we need to create corresponding transformers which define the association between the method in the monitored application and the method used for the instrumentation. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer defining instrumentation of \texttt{call} and \texttt{response} method looks like:
 
 \begin{lstlisting}[language=Java]
 new BaseTransformer() {
@@ -150,7 +150,7 @@ Now we need to build the extended instrumentation server. This server has two de
 
 After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
-For the purposes of this example, we will start a cluster of three H\textsubscript{2}O nodes. Two nodes will be the regular nodes and the last node will contain the main method in which we execute the the \textbf{SumMRTask}. This task is used to sum range of the numbers in distributed manner.
+For the purposes of this example, we will start a cluster of three H\textsubscript{2}O nodes. Two nodes will be the regular nodes and the last node will contain the main method in which we execute the \textbf{SumMRTask}. This task is used to sum range of the numbers in distributed manner.
 
 Arbitrary H\textsubscript{2}O node can be started as: \newline \texttt{java -jar h2o.jar -name cluster\_name}\newline When operating on the network with multi-cast communication enabled multiple nodes started with the same cluster name will form a cluster.
 

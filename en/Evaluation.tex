@@ -39,7 +39,7 @@ The following Table \ref{bench1} contains numbers in seconds how long it took to
   \hline  
 \textbf{average} & \textbf{35,252s} & \textbf{46,886s} \\
 	\end{tabular}
-	\captionof{table}{First measuremnt.}\label{bench1}
+	\captionof{table}{First measurementt.}\label{bench1}
 \end{center}
 We can see that in this case the average run time with monitoring enabled is on average 10 seconds slower. This can be explained as the overhead of starting the instrumentation server from the native agent on a single machine for all three H\textsubscript{2}O nodes in the cluster.
 
@@ -61,7 +61,7 @@ The following Table \ref{bench2} shows how long the only the computation of the 
 10	&12,323s &	15,500s \\ 
 
 		\hline  
-		\textbf{average} & \textbf{12,265} & \textbf{14,192} \\
+		\textbf{average} & \textbf{12,265s} & \textbf{14,192s} \\
 	\end{tabular}
 	\captionof{table}{Second measurement.}\label{bench2}
 \end{center}
@@ -85,7 +85,7 @@ Lastly, the final Table \ref{bench3} shows how long each subsequent computation 
 10&	0,999s&	2,721s \\
 
 \hline  
-\textbf{average} & \textbf{1,257} & \textbf{3,351} \\
+\textbf{average} & \textbf{1,257s} & \textbf{3,351s} \\
 \end{tabular}
 \captionof{table}{Third measurement.}\label{bench3}
 
@@ -98,7 +98,7 @@ This tool is planned to be extend in the future. Mainly, the tool should be impr
 \item \textbf{More Additional Span Savers} \newline
 Currently, the tool provides two default span savers and allows the user to extend the \texttt{SpanSaver} abstract class and implement custom span savers. However, we would like to create more savers in the future which would be able to store spans into different storage types and also in different formats. At this moment, the output is in the JSON format understandable to the Zipkin user interface and the data are saved either to disk or are send to the user interface right away. We could for example create a span saver, which could save the span into a database from which the arbitrary user interface could fetch the data.
 \item \textbf{Support for Flame Graphs} \newline
-The second future plan is to add support for flame charts. The native agent could be used to capture the stack-traces of the running application and later, a flame graph representing the distributed computation could be created. For example, this integration would give us the ability to inspect the memory-usage or performance cluster-vise using the flame graphs visualizations.
+The second future plan is to add support for flame charts. The native agent could be used to capture the stack-traces of the running application and later, a flame graph representing the distributed computation could be created. For example, this integration would give us the ability to inspect the memory-usage or performance cluster-vise using the flame graphs visualization.
 \end{itemize}
 
 
