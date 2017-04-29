@@ -255,9 +255,7 @@ Trace context is a class used for storing the information about the current span
 
 Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can't have the same identifier. The identifiers are created in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via a published native method \texttt{getTypeOneUUID}.
 
-The trace contact has methods \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span exporting operation using the configured span exporter and the parent span becomes the current span.
-
-The Figure \ref{fig:closing_spans} shows how spans are created, closed and saved.  in this chapter. \begin{figure}
+The trace contact has methods \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span exporting operation using the configured span exporter and the parent span becomes the current span. The Figure \ref{fig:closing_spans} shows how spans are created, closed and exporter. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{closing_spans.png}
 	\caption{Creating and closing spans.}
