@@ -36,6 +36,13 @@ The Figure \ref{fig:architecture} denotes the basic relationships between the ma
 	\label{fig:architecture}
 \end{figure}
 
+The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other trace and represents tracing of a single computation, which consist of several spans. Spans denote more local computation and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be attached to the node communication and that's reason why in this case the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.56]{full_overview.png}
+	\caption{Trace and Span demonstration. }
+	\label{fig:full_overview}
+\end{figure}
 \section{Example Use Case}
 \label{design:use_case}
 In order to demonstrate the use case for which this architecture is a good fit, a simple architecture is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as a different threads in a single applications or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the computation module. This module performs the computation and sends the data to the exporter module which saves the data on disk and informs the client of the task completion. The architecture of the example can be seen on the figure \ref{fig:example_arch}.
@@ -203,7 +210,7 @@ The following sections contain information about how spans are exported for exte
 \subsection{Span Savers \& Data Collectors}
 Spans are exported from the application using the span savers. Span saver for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span saver is static field of the \texttt{Span} class. Span savers need to be available to the monitored application and therefore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
 
-The thesis provides two default implementation of span savers but also allows the developer to create new span savers. New span savers may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
+The thesis provides two default implementation of span savers, but also allows the developer to create new span savers. New span savers may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
 
 Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and it is explained in more detail later in the Chapter \ref{chap:implementation}. This format can be again changed by the custom span saver.
 
