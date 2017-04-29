@@ -208,7 +208,7 @@ The following sections contain information about how spans are exported for exte
 \subsection{Span Exporters \& Data Collectors}
 Spans are exported from the application using the span exporters. Span exporter for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span exporter is static field of the \texttt{Span} class. Span exporters need to be available to the monitored application and therefore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
 
-The thesis provides two default implementation of span exporters, but also allows the developer to create new span exporters. New span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
+The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
 
 Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and it is explained in more detail later in the Chapter \ref{chap:implementation}. This format can be again changed by the custom span exporter.
 
@@ -230,7 +230,7 @@ As mentioned above, the tool provides two default simple span exporters:
 			\caption{Using the Zipkin span exporter to export spans directly to Zipkin user interface without the data collector agent.}
 			\label{fig:zipkin_span_exporter}
 		\end{figure}
-	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The diagram \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
+	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.5]{disk_span_exporter.png}
@@ -238,7 +238,7 @@ As mentioned above, the tool provides two default simple span exporters:
 		\label{fig:disk_span_exporter}
 	\end{figure}
 \end{itemize}
-Additionally, the diagram \ref{fig:custom_span_exporter} shows how a custom span exporter may be used.
+Additionally, the Figure \ref{fig:custom_span_exporter} shows how a custom span exporter may be used.
 
 \begin{figure}
 	\centering
@@ -257,7 +257,7 @@ Each trace is represented by trace context and is uniquely identified by Univers
 
 The trace contact has methods \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span exporting operation using the configured span exporter and the parent span becomes the current span.
 
-The diagram \ref{fig:closing_spans} shows how spans are created, closed and saved.  in this chapter. \begin{figure}
+The Figure \ref{fig:closing_spans} shows how spans are created, closed and saved.  in this chapter. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{closing_spans.png}
 	\caption{Creating and closing spans.}
@@ -350,21 +350,21 @@ The instrumentation server is responsible for instrumenting the bytecode receive
 
 This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class being loaded is required to be instrumented. If yes, the server receives the bytecode, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular it does not take track about the distributed traces. The information about traces is contained in the application's instrumented classes.
 
-The platform was designed to be configurable and deployment of instrumentation server is supported via two approaches. The instrumentation server can be either on the network available to all the application nodes and can be shared by all applications. This has the advantage of caching the instrumented classes. So when any class is instrumented for the first time, it is saved and the instrumentation is not performed for other nodes but the class is immediately sent. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same node. In this case the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the diagram \ref{fig:shared_server}.
+The platform was designed to be configurable and deployment of instrumentation server is supported via two approaches. The instrumentation server can be either on the network available to all the application nodes and can be shared by all applications. This has the advantage of caching the instrumented classes. So when any class is instrumented for the first time, it is saved and the instrumentation is not performed for other nodes but the class is immediately sent. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same node. In this case the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the Figure \ref{fig:shared_server}.
  
  \begin{figure}
  	\centering
  	\includegraphics[scale=0.8]{shared_server.png}
- 	\caption{Architecture with shared instrumentation server. The dotted lines represents the communication between instrumentation server and the agent whilst the regular lines represents data collection from the agent to the UI.}
+ 	\caption{Architecture with shared instrumentation server. The dotted lines represent the communication between instrumentation server and the agent, whilst the regular lines represent data collection from the agent to the UI.}
  	\label{fig:shared_server}
  \end{figure}
  
- The other deployment method is that the instrumentation server runs on each application node. This has the advantage of faster communication since  inter-process communication is used to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted on the diagram \ref{fig:separated_server}.
+ The other deployment method is that the instrumentation server runs on each application node. This has the advantage of faster communication since  inter-process communication is used to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted on the Figure \ref{fig:separated_server}.
  
  \begin{figure}
  	\centering
  	\includegraphics[scale=0.8]{separated_server.png}
- 	\caption{Architecture with separated instrumentation server. The meaning of the lines is the same as on the diagram above.}
+ 	\caption{Architecture with separated instrumentation server. The dotted lines represent the communication between instrumentation server and the agent, whilst the regular lines represent data collection from the agent to the UI.}
  	\label{fig:separated_server}
  \end{figure}
 
