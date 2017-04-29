@@ -205,7 +205,7 @@ Spans are exported from the application using the span savers. Span saver for th
 
 The thesis provides two default implementation of span savers but also allows the developer to create new span savers. New span savers may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service which collects the data from the specified place and store them in central data storage available by all application's node. This thesis does not implement data collection service as many services exists for this purpose. 
 
-Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and  it is explained in more detail later in the  \hyperref[chap:implementation]{Implementation} chapter. This format can be again changed by the custom span saver.
+Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and it is explained in more detail later in the Chapter \ref{chap:implementation}. This format can be again changed by the custom span saver.
 
 Span saver implementations need to extend from the abstract ancestor defining common methods for each span saver. Also, in order to be able to use the saver automatically in the code, it has to have a constructor with single \texttt{String} argument accepting saver arguments. The arguments format is defined in the case of default span savers however the developer may use any format in case of custom span savers. The common ancestor, \texttt{SpanSaver} abstract class has two abstract methods:
 \begin{itemize}
@@ -241,14 +241,14 @@ Additionally, the diagram \ref{fig:custom_span_saver} shows how a custom span sa
 	\caption{Using custom span saver together with the data collection service and custom user interface.}
 	\label{fig:custom_span_saver}
 \end{figure}
-In order to give the developer the flexibility to add new savers without changing the internals, the span savers have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanSaver} abstract class. The reason why the classes needs to be discovered is explained in the following \hyperref[native_agent_design]{Native Agent} section. 
+In order to give the developer the flexibility to add new savers without changing the internals, the span savers have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanSaver} abstract class. The reason why the classes need to be discovered is explained in the following Section \ref{native_agent_design}
 
 To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} is used. Instead of manually registering the implemented span savers into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanSaver}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
 
 \subsection{Trace Context}
 Trace context is a class used for storing the information about the current span and also for creating new spans and closing current spans. Trace context is always attached to a specific thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Singleton instance of class \texttt{TraceContextManager} is used for attaching the threads to the trace contexts and vice-versa. It has a few methods allowing the developer to attach trace context to a specific thread and also to get trace context which is attached to a current thread.
 
-Each trace represented by a trace context is uniquely identified by \texttt{Universally unique identifier (UUID)} of type one is created. This UUID version combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can't have the same identifier. The identifiers are created using a C++ library called sole (https://github.com/r-lyeh/sole) in the native agent and are made available to the Java code via a published native method.
+Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can't have the same identifier. The identifiers are created in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via a published native method \texttt{getTypeOneUUID}.
 
 The trace contact has methods \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span saving operation on the used span saver and the parent span becomes the current span.
 
@@ -284,7 +284,7 @@ The native agent is used for accessing the internal state of the monitored appli
 
 The native agent consist of several parts. The most important parts are:
 \begin{itemize}
-	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the following \hyperref[chap:implementation]{Implementation} chapter.
+	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the Chapter \ref{chap:implementation}.
 	\item \textbf{InstrumentorAPI}. \newline The \texttt{InstrumentorAPI} class provides several methods which are used to communicate with the instrumentation server JVM. All the queries to the server are done via instance of this class.
 	\item \textbf{AgentCallbacks}. \newline All callbacks used in the native agent are defined in this namespace.
 	\item \textbf{AgentArgs}.  \newline The \texttt{AgentArgs} class contains all the logic required for argument parsing.
@@ -293,7 +293,7 @@ The native agent consist of several parts. The most important parts are:
 \end{itemize}
 
 \subsection{Agent Initialization}
-The agent is initialized via the same phases as described in the \hyperref[subsec:jvmti_init]{JVMTI Agent Initialization}  section of the \hyperref[chap:background]{Background} chapter. The following JVMTI events are especially important to the thesis: \texttt{VM Init}, \texttt{VM Start}, \texttt{VM Death}, \texttt{Class File load Hook}, \texttt{Class Prepare} and \texttt{Class Load}. Callbacks are registered for all the mentioned events so the native agent can react to them accordingly in the code.
+The agent is initialized through the same phases as described in the Section \ref{subsec:jvmti_init}. The following JVMTI events are especially important to the thesis: \texttt{VM Init}, \texttt{VM Start}, \texttt{VM Death}, \texttt{Class File load Hook}, \texttt{Class Prepare} and \texttt{Class Load}. Callbacks are registered for all the mentioned events so the native agent can react to them accordingly in the code.
 
 As part of the initialization process, the agent is responsible for either connecting to or starting a new instrumentation server. In case the native agent was started in the shared mode of the instrumentation server, the agent tries to connect to already existing server and the server is shared between all application's nodes. In the local instrumentation mode, the instrumentation server is started as a separated process automatically and the connection is established with the server using the inter process communication. In this case, each application node has dedicated instrumentation server.
 
@@ -387,7 +387,7 @@ The second stage follows the first stage immediately. If the server already cont
 The code instrumentation is handled by \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
 The instrumentation server expects instance of \texttt{MainAgentBuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToHelperClasses)}, where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class, which is used to define the class transformers.
 
-The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the \hyperref[sec:byte_buddy]{Byte Buddy} section. The server provides several helper methods for creating the transformers and interceptors, which are less verbose then the standard Byte Buddy approaches.
+The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the Section \ref{sec:byte_buddy}. The server provides several helper methods for creating the transformers and interceptors, which are less verbose then the standard Byte Buddy approaches.
 
 Each transformer has to have associated either an interceptor or advice defining the code to be injected to the original code. Each interceptor implementation has to implement \texttt{Interceptor} interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span savers mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface. 
 
@@ -425,7 +425,7 @@ Java provides service loader for this purpose. However the standard Java impleme
 \subsection{JSON Generation}
 The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
 
-The JSON handling is based on the https://github.com/ralfstx/minimal-json library, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
+The JSON handling is based on the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
 
 This JSON support is designed via several classes:
 \begin{enumerate}

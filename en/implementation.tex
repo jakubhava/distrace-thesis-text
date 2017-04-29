@@ -39,7 +39,7 @@ The bytecode starts with the several important parts:
 	\item \textbf{Fields}. This part of the bytecode contains the number of fields this class defines together with some additional information for each defined field.
 	\item \textbf{Methods}. This part contains the number of defined methods in the bytecode together wit additional information per each method such as the number of arguments.
 \end{itemize}
-More information about class file structure can be found at https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html. 
+More information about class file structure can be found at the official Java documentation\footnote{The documentation of the class loading process is available at \url{https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html}}.
 Each part of the class file mentioned above is parsed separately. For accessing the raw bytecode a \texttt{ByteReader} class is used. It contains methods fro reading different types of data from the bytecode array. 
 
 Parsing the magic id and both minor and major versions is straightforward as their are just numbers and can be read using the byte reader class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. The constant can be of several type such as constant representing the Class symbol, String symbol, Method types of Field types for example. Once the Constant pool is parsed, it can be queried for the specific symbol by its id. Class name and super class name, interfaces, fields and methods are read from the constant pool by using their ids.
