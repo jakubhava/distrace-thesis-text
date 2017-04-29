@@ -169,7 +169,7 @@ As mentioned briefly in the previous section, spans are used to gather the infor
 
 Spans are the main concept behind capturing the distributed traces. They are special classes which instances are injected to instrumented application's classes to keep track of the communication and the state between the nodes in the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
 
-Spans has several mandatory and optional fields. The mandatory fields are trace id, span id and parent span id. Trace id represents one complete distributed call among all interacting nodes on the cluster. This field is attached automatically when a new root span is created. Root span is a first span created inside a trace. The root span does not have parent id field set up and therefore the user interface back-end can distinguish between regular spans and root spans and therefore can identify the start of the whole trace. Parent id of a span is always id of span from which the span received a request to perform some task. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace several threads as separated spans within a single node.  
+Spans has several mandatory and optional fields. The mandatory fields are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes on the cluster. This field is attached automatically when a new root span is created. Root span is a first span created inside a trace. The root span does not have parent id field set up and therefore the user interface back-end can distinguish between regular spans and root spans and therefore can identify the start of the whole trace. Parent id of a span is always id of span from which the span received a request to perform some task. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace several threads as separated spans within a single node.  
 
 Span have several additional fields, which are later used in the user interface. The fields are:
 \begin{itemize}
@@ -196,7 +196,7 @@ It is also important to mention that span id and parent span id are created rand
 		\caption{Generating span ids randomly ensures that they don't overlap when they are created in parallel.}
 		\label{fig:parallel_spans}
 	\end{figure}
-If the ids were not random, the parallel spans would be creating spans with ids in the same linear sequence and therefore these spans would be overlapping as can be seen on the figure \ref{fig:parallel_spans_overlapping}
+If the ids were not random at different nodes of the distributed system, the parallel spans would be creating child spans with ids in the same linear sequence and therefore these spans would be overlapping, as can be seen on the Figure \ref{fig:parallel_spans_overlapping}
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.6]{parallel_spans_overlapping.png}
@@ -458,7 +458,7 @@ The thesis is using Zipkin as default user interface. The default data format fo
 	\label{fig:zipkin_ui}
 \end{figure}
 
-Each span in the UI is clickable and all the additional information can bee seen at that level. In this thesis the stack trace are also collected at each span for monitoring purposes. Example of such information screen can be seen on the figure \ref{fig:zipkin_ui_detail}.
+Each span in the UI is clickable and all the additional information can bee seen at that level. In this thesis the stack trace are also collected at each span for monitoring purposes. Example of such information screen can be seen on the Figure \ref{fig:zipkin_ui_detail}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.4]{zipkin_ui_detail.png}
