@@ -267,7 +267,7 @@ In order to capture the shared state between the nodes in the application or eve
 
 Usually when transferring the trace context between the threads on the same node the copies of the trace context have to be used. When transferring the trace context between the different nodes this is not an issue.
 
-The methods the developer can use for obtaining and attaching the trace context are:
+The developer responsible for extending the instrumentation server can use the following methods for obtaining and attaching the trace context:
 \begin{itemize}
 	\item \texttt{static create()} - creates a new trace context.
 	\item \texttt{static getFromObject(holder)} - gets the existing trace context from the holder object.
@@ -443,10 +443,10 @@ This JSON support is designed via several classes:
 Each \textbf{JSONValue} can be printed as valid JSON string where the printing is driven by\texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
 
 \section{User Interface}
-\label{sec:zipkin_ui}.
+\label{sec:zipkin_ui}
 The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow the tool to send part of data from the sender side and part of data from the receiver side directly to the user interface instead of sending the data back on forth to send them as one single complete span.
 
-The thesis is using Zipkin as default user interface. The default data format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporter class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
+The Distrace tool is using Zipkin as default user interface. The default data format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporter class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
 
 
 \begin{figure}
@@ -477,7 +477,7 @@ Zipkin requires data to be sent in JSON format. Requests to UI are sent as JSON 
 		\item \textbf{cr} : timestamp of client receiving the span
 		\item \textbf{cs} : timestamp of client sending the span
 		\item \textbf{sr} : timestamp of server receiving the span
-		\item \textbf{ss} : timestamp of server receiving the span
+		\item \textbf{ss} : timestamp of server sending the span
 		\item \textbf{ca} : client address
 		\item \textbf{sa} : server address
 	\end{itemize}
