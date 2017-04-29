@@ -182,7 +182,7 @@ Each span has also an internal field called \textbf{flags}. The developer may st
 
 Each annotation, both binary and regular, has also endpoint information attached. This element consist of:
 \begin{itemize}
-	\item \textbf{ip} - ip of the node on which this event was recorded
+	\item \textbf{IP} - IP of the node on which this event was recorded
 	\item \textbf{port} - port on which the service which recorded the span is running.
 	\item \textbf{service name} - service name which is used to group different traces by names and can be later used to filter traces using this field in the user interface.
 \end{itemize}
@@ -222,7 +222,7 @@ As mentioned above, the tool provides two default simple span exporters:
 \begin{itemize}
 	\item  \texttt{DirectZipkinExporter} - The default span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by an external data collector. In this case the functionality of the span exporter and the data collector are handled by this single . This span exporter should be used for demonstration purposes only since it could overload the user interface or network when processing and sending high amount of collected spans in a short amount of time to the user interface as the UI is not prepared to store large amounts of data in the memory. 
 	
-	This exporter accepts a single argument which is ip and port of the Zipkin UI service. The Figure \ref{fig:zipkin_span_exporter} shows how the Zipkin span exporter is used.
+	This exporter accepts a single argument, which is IP and port of the Zipkin UI service. The Figure \ref{fig:zipkin_span_exporter} shows how the Zipkin span exporter is used.
 	
 		\begin{figure}
 			\centering
