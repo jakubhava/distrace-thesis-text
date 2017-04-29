@@ -43,7 +43,7 @@ The Figure \ref{fig:full_overview} shows how trace trees and spans are related o
 \end{figure}
 \section{Example Use Case}
 \label{design:use_case}
-In order to demonstrate the use case for which this architecture is a good fit, a simple architecture of a distributed application is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as a different threads in a single applications or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the execution module. This module performs the computation and sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen on the figure \ref{fig:example_arch}.
+In order to demonstrate the use case for which this architecture is a good fit, a simple architecture of a distributed application is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as a different threads in a single applications or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the execution module. This module performs the computation and sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen on the Figure \ref{fig:example_arch}.
 
 The goal is to be able to discover how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not collect this information already otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
 
@@ -141,7 +141,7 @@ In this case, the meaning of the methods is the same as above.
 
 \end{itemize}
 
-The developer should extend the base instrumentation server by steps how to instrument the classes  in order to have a similar format as above. The extended instrumentation server is described on the figure \ref{fig:example_extended}.
+The developer should extend the base instrumentation server by steps how to instrument the classes  in order to have a similar format as above. The extended instrumentation server is described on the Figure \ref{fig:example_extended}.
 
 	\begin{figure}
 		\centering
@@ -152,7 +152,7 @@ The developer should extend the base instrumentation server by steps how to inst
 
 The extended instrumentation server is then run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of distributed application prior it's start and the path to the extended instrumentation server JAR needs to be set as an mandatory argument. The default span sever is used in this case and the collected spans are send right to the Zipkin UI. The default endpoint for the user interface is used when not defined as an argument to the native agent. 
 
-A single collected trace from this application should look as shown on the figure \ref{fig:example_trace}.
+A single collected trace from this application should look as shown on the Figure \ref{fig:example_trace}.
 
 	\begin{figure}
 		\centering
@@ -188,7 +188,7 @@ Each annotation, both binary and regular, has also endpoint information attached
 \end{itemize}
 
 \subsection{Span IDs}
-It is also important to mention that span id and parent span id are created randomly. This is done in order to allow parallel spans in the same control flow without overlapping as can be seen on the figure \ref{fig:parallel_spans}.
+It is also important to mention that span id and parent span id are created randomly. This is done in order to allow parallel spans in the same control flow without overlapping as can be seen on the Figure \ref{fig:parallel_spans}.
 
 	\begin{figure}
 		\centering
