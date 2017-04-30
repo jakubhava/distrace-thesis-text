@@ -1,16 +1,16 @@
 \chapter{Design}
 \label{chap:design}
-This chapter describes design of the whole platform in details, however implementation specifics of some parts of the Distrace tool are described in the following chapter. This chapter starts with the high-level overview of the complete platform and interactions between the parts and follows by a simple use-case to give the reader idea how this tool is mean to be used. 
+This chapter describes design of the whole platform in details, however implementation specifics of some parts of the Distrace tool are described in the following Chapter \ref{chap:implementation}. The current chapter starts with the high-level overview of the complete platform and interactions between its parts. It is followed by a simple use-case to give the reader an idea how this tool is can be used.
 
-Spans and their format are described next followed by design of the native agent and instrumentation server. This chapter ends by describing the used Zipkin user interface and also JSON format in which the user interface accepts the data from the instrumentation server. 
+Spans and their format are described next, followed by design of the native agent and instrumentation server. This chapter ends by description of the default Zipkin user interface and also JSON format, in which the user interface accepts the data from the instrumentation server. 
 
 \section{Overview}
 \label{design:overview}
-Main purpose of this tool is to collect distributed traces. In order to achieve that, the thesis is based on the concept of Spans. Spans are used to denote some specific part of the communication between the communicating nodes and are the important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within this span create new nested spans. Created spans can be exported using different span exporters and can be send to the user interface using various data collectors. Span exporters are used to export spans in desired format on disk or on the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and present them to the user in a form of trace trees.
+Main purpose of this tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be send to the user interface using various data collectors. Span exporters are used to export spans in desired format on disk or the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and present them to the user in a form of trace trees.
 
-Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created instrumentation server is then used for instrumenting the classes of the original application at which information about spans needs to be preserved. In order to obtain the class files, the native agent runs  as part of the monitored application and sends the instrumentation server the desired classes. The native agent is the core part of the whole platform. It is attached to the monitored application and additionally to the instrumentation, it is used to obtain various low-level information from the application. 
+Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created extended instrumentation server is then used for instrumenting the classes of the original application, however spans are still located in the scope of the application itself. In order to obtain the class files for transformation, the native agent runs as part of the monitored application and sends the desired classes to the instrumentation server. The native agent is a core part of the whole platform. It is attached to the monitored application and additionally to providing the data to the instrumentation server, it is used to obtain various low-level information from the application. 
 
-The tool therefore consists of three main parts:
+The tool therefore consists of three main components:
 \begin{itemize}
 	\item Native Agent
 	\begin{itemize}
@@ -20,32 +20,32 @@ The tool therefore consists of three main parts:
 	\item Instrumentation Server
 	\begin{itemize}
 		\item Instruments the classes obtained from the native agent.
-		\item Is also a base library for custom application instrumentation server.
-		\item Can contain implementation of custom span exporters.
+		\item Is also base library for custom application instrumentation server.
+		\item Can contain implementation of customized span exporters.
 	\end{itemize}
 	\item User Interface
 \end{itemize}
 
 
-The Figure \ref{fig:architecture} denotes the basic relationships between the major parts. Instrumentation server communicates with the native again mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be send either via data collection agent or via one of the default span exporters explained later in this chapter. Each part is explained in more detail later in this chapter. \begin{figure}
+The Figure \ref{fig:architecture} denotes the basic relationships between the major parts. Instrumentation server communicates with the native again, mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be send either via data collection agent or via one of the default span exporters explained later in this chapter. Each part is described in more detail later in this chapter. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{architecture.png}
 	\caption{Basic relationship between the major components. }
 	\label{fig:architecture}
 \end{figure}
 
-The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other trace and represents tracing of a single computation, which consist of several spans. Spans denote more local computation and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be attached to the node communication and that's reason why in this case the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
+The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other and represents tracing of a single computation, which consist of several spans. Spans denote more local computation and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be attached to the node communication. That is also a reason why in this case the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.56]{full_overview.png}
-	\caption{Trace and Span demonstration. }
+	\caption{Trace and span demonstration. }
 	\label{fig:full_overview}
 \end{figure}
 \section{Example Use Case}
 \label{design:use_case}
-In order to demonstrate the use case for which this architecture is a good fit, a simple architecture of a distributed application is shown in this section. The example consists of three modules. The client module used for submitting a task, the execution module and the module used for exporting the data. These modules can be represented as separated threads in a single application or as separated application nodes. In this example, the user always passes a task to the client module. The client module performs some pre-processing and sends the task to the execution module. This module performs the computation and sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen on the Figure \ref{fig:example_arch}.
+In order to demonstrate an use case for which this architecture may a good fit, a small example on a simple distributed application is shown in this section. The example consists of three modules. The client module used for submitting tasks, the execution module and the module used for exporting the data. These modules can be represented as separated threads in a single application or as different nodes of the distributed application. In this example, the user always passes a task to the client module. This module performs some pre-processing and sends the task to the execution module. This module performs the computation and once it's done, sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen on the Figure \ref{fig:example_arch}.
 
-The goal is to be able to discover how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not collect this information already otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
+The goal of this example is to record and visualize how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not collect this information already, otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
 
 	\begin{figure}
 		\centering
@@ -88,7 +88,7 @@ public export(TaskResult result){
 \end{lstlisting}
 \end{itemize}
 
-In order to be able to collect this type of information and be able to reason about the relationship between the nodes, these methods needs to be instrumented. The instrumented code should look as in the schematic code below. For achieving this, the developer is supposed to extend the instrumentation server which acts as the base library and provides the developer with several helper methods used to specify the instrumentation points for their applications. 
+In order to collect this type of information and be able to reason about the relationship between the modules, these methods needs to be instrumented. The instrumented code should look as in the schematic code below. Generally, the logic which keeps the track of the current trace and span needs to be injected into the code. To achieve this, developers are supposed to extend the core instrumentation server, which acts as the base library and provides them with several helper methods used to specify the instrumentation points for their applications. 
 
 \begin{itemize}
 \item \textbf{The instrumented client:}
@@ -124,7 +124,7 @@ public execute(Task task){
   tc.closeCurrentSpan()
 }
 \end{lstlisting}
-In this case, we don't create a new trace context but get the existing one from the \texttt{task} object on the input. A new nested span is created. This span has the original span created within the client application as its parent.
+In this case, we don't create a new trace context, but obtain the existing one from the \texttt{task} object on the input. A new nested span is opened within the scope of the span, created in the previous module. The current span marks the span from the previous module as its parent.
 
 \item \textbf{The instrumented exporter:}
 \begin{lstlisting}[language=Java]
@@ -141,16 +141,16 @@ In this case, the meaning of the methods is the same as above.
 
 \end{itemize}
 
-The developer should extend the base instrumentation server by steps how to instrument the classes  in order to have a similar format as above. The extended instrumentation server is described on the Figure \ref{fig:example_extended}.
+The developer should extend the base instrumentation server to instrument the classes in order to have a similar format as above. The extended instrumentation server is described on the Figure \ref{fig:example_extended}.
 
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.5]{example_extended.png}
-		\caption{Structure of extended instrumentation server JAR.}
+		\caption{Structure of the extended instrumentation server JAR artifact.}
 		\label{fig:example_extended}
 	\end{figure}
 
-The extended instrumentation server is then run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin UI. The default IP address and port of the user interface is used when it's not explicitly configured as the argument.
+The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin UI. The default IP address and port of the user interface is used when it's not explicitly configured as the native agent argument.
 
 A single collected trace from this application should look as shown on the Figure \ref{fig:example_trace}.
 
@@ -161,7 +161,7 @@ A single collected trace from this application should look as shown on the Figur
 		\label{fig:example_trace}
 	\end{figure}
 
-Therefore, it can be seen that the only part the developer needs to work with is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of the work is done automatically. The end user is only responsible for starting the application with the agent attached.
+Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of technical work is done automatically. The end user is only responsible for starting the application with the agent attached.
 
 \section{Spans and Trace Trees}
 \label{subsec:spans}
