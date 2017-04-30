@@ -320,7 +320,7 @@ The goal of this section is not to describe full JVMTI functionality, but just g
 
 \subsubsection{JVMTI Agent Initialization}
 \label{subsec:jvmti_init}
-When an agent is started, the following JVMTI method is always called: \newline \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)}. \newline This method should contain the agent initialization specific for the application. Usually, the agent initialization process consists of several phases:
+When an agent is started, the following JVMTI method is always called: \linebreak \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)}. This method should contain the agent initialization specific for the application. Usually, the agent initialization process consists of several phases:
 \begin{enumerate}
 	\item Optionally, parse arguments passed to the JVMTI agent.
 	\item Initialize JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle threads switches automatically, so proper locking and thread management fully depends on the user code.

@@ -152,7 +152,7 @@ However, Byte Buddy internal API does not work with raw bytecode for scanning th
 So in overall, class lookup is done in the following two steps:
 \begin{enumerate}
 	\item Check whether type description for the class is available. If yes, load the type description from the cache.
-	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for the class and put it in the cache.
+	\item If the type description is not available, load the class using the \linebreak \texttt{InstrumentorClassloader}, create type description for the class and put it in the cache.
 \end{enumerate}
 
 \subsection{Optimizations}
@@ -163,7 +163,7 @@ The other way how the communication can be optimized can be influenced by the us
 This short section explains how additional fields such as the span information are internally attached to the instrumented classes. The trace information is attached to the instrumented class by adding a new synthetic field with name \texttt{\_\_\_\_traceId}. This trace id represents the current trace and is used in the code to obtain reference to a current trace context and also current span.  A new field is created using the Byte Buddy instrumentation builder using the \texttt{defineField} method.
 \subsection{Determine the Current Span Exporter}
 This section explains how a span exporter type and also other arguments passed to the native agent are made accessible to the instrumentation server. The span exporter type is defined as part of the native agent and needs to be available at the instrumentation server as well. This is achieved by creating and registering the native method to a class, which is defined as part of the instrumentation server.
-In case of span exporters, the abstract class \texttt{SpanExporter} is defined at the instrumentation server and contains native native method named \texttt{getSpanExporterType} for getting the span exporter type. The abstract \texttt{SpanExporter} class is sent to the native agent during the initialization phase. When this class is required for the first time, the native method implementation is bound to the method \texttt{getSpanExporterType} defined in the \texttt{SpanExporter} class. Therefore, even the classes defined as part of the instrumentation server can use methods defined on the native agent with really small overhead. Actually, there may be a performance gain, since these methods are written as native methods.
+In case of span exporters, the abstract class \texttt{SpanExporter} is defined at the instrumentation server and contains native native method named \texttt{getSpanExporterType} for getting the span exporter type. The abstract \linebreak \texttt{SpanExporter} class is sent to the native agent during the initialization phase. When this class is required for the first time, the native method implementation is bound to the method \texttt{getSpanExporterType} defined in the \texttt{SpanExporter} class. Therefore, even the classes defined as part of the instrumentation server can use methods defined on the native agent with really small overhead. Actually, there may be a performance gain, since these methods are written as native methods.
 
 \subsection{JSON Generation}
 \label{json_gen}
