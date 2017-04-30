@@ -169,26 +169,26 @@ As mentioned briefly in the previous section, spans are used to gather the infor
 
 Spans are the main concept behind capturing the distributed traces. They are entities injected to the code of the instrumented application to keep track of the communication and state between the nodes of the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
 
-Spans has several mandatory and optional fields. The mandatory fields are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes on the cluster. This field is attached automatically when a new root span is created. Root span is a first span created inside a trace. The root span does not have parent id field set up and therefore the user interface back-end can distinguish between regular spans and root spans and therefore can identify the start of the whole trace. Parent id of a span is always id of span from which the span received a request to perform some task. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace several threads as separated spans within a single application node.  
+Span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. A root span is the first span created inside the trace and does not have parent id attribute set up. Therefore, the user interface back-end can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node.  
 
-Span have several additional fields, which are later used in the user interface. The fields are:
+Span has also several additional optional fields, which are later used in the user interface. The fields are:
 \begin{itemize}
 	\item \textbf{Timestamp} - when the span started.
 	\item \textbf{Duration} - how long the span lasted.
-	\item \textbf{Annotations} - annotations which are used to carry additional timing information about spans. For example time when span has been received on the receiver side or the time the span has been processed at the receiver side can be set using the annotations.
-	\item \textbf{Binary annotations} - annotations which can be used to carry around application specific details. We can use these annotations to transfer information between communication nodes inside of spans. For example, one node can store number of bytes sent during the request and the receiver can use this information to calculate overall number of bytes received from this particular node.
+	\item \textbf{Annotations} - annotations used to carry additional timing information about spans. For example, time when the span has been received on the receiver side or the time the span has been processed at the receiver side can be set using these annotations.
+	\item \textbf{Binary annotations} - annotations used to carry around application specific details. They can also be used to transfer information between communication nodes inside of a single span. For example, a sender can store number of bytes sent during the request and a receiver can use this information to calculate overall number of bytes received from this particular node.
 \end{itemize}
-Each span has also an internal field called \textbf{flags}. The developer may store flags important to the instrumentation and these flags are transferred as part of the spans. Flags are not sent to the user interface and are only used for instrumentation purposes.
+Each span has also an internal field called \textbf{flags}. The developer may store tags important to the instrumentation and these flags are transferred as part of the spans. Flags are not sent to the user interface and are only used for instrumentation purposes. For example, they can be used in case of multiple spans exist at a single moment. In this case, these spans can be annotated with special flags and the decision can be made based on this to process these spans.
 
-Each annotation, both binary and regular, has also endpoint information attached. This element consist of:
+Each annotation, both binary and regular, has also an endpoint information attached. This element consist of:
 \begin{itemize}
-	\item \textbf{IP} - IP of the node on which this event was recorded
-	\item \textbf{port} - port on which the service which recorded the span is running.
-	\item \textbf{service name} - service name which is used to group different traces by names and can be later used to filter traces using this field in the user interface.
+	\item \textbf{IP} - IP of the node on which this event was recorded.
+	\item \textbf{port} - port of the service which recorded the span.
+	\item \textbf{service name} - a special name, which is used in the user interface to group and filter different traces by names.
 \end{itemize}
 
 \subsection{Span IDs}
-It is also important to mention that span id and parent span id are created randomly. This is done in order to allow parallel spans in the same control flow without overlapping as can be seen on the Figure \ref{fig:parallel_spans}.
+It is also important to mention that span id is created randomly. This is done in order to allow parallel spans to coexist in the same control flow without overlapping as can be seen on the Figure \ref{fig:parallel_spans}.
 
 	\begin{figure}
 		\centering
@@ -204,13 +204,13 @@ If the ids were not random at different nodes of the distributed system, the par
 		\label{fig:parallel_spans_overlapping}
 	\end{figure}
 	
-The following sections contain information about how spans are exported for external communication with the user interface and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager} classes.
+The following sections contain information about how spans are exported for processing outside of the Distrace tool and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager}.
 \subsection{Span Exporters \& Data Collectors}
-Spans are exported from the application using the span exporters. Span exporter for the application may be selected via one of the native agent configuration properties. It is important to mention that all spans in the application are using the same, because span exporter is static field of the \texttt{Span} class. Span exporters need to be available to the monitored application and therefore are brought to the application from the instrumentation server via the native agent during the agent initialization phase.
+Spans can be exported from the application using so called span exporters. The type of the exporter can be configured via one of the native agent configuration properties. It is important to mention that the exporter is configured globally and each span in the application is using the same exporter\footnote{Exporter is a static attributed of the \texttt{Span} entity.}. The monitored application needs to have the chosen span exporter available at run-time, since the export is performed at the scope of the monitored application. Therefore, exporters are sent to the native agent during the initialization phase and the agent puts the exporters on the application classpath.
 
-The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in a distributed application. This thesis does not implement data collection service as many services exist for this purpose. 
+The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in the distributed application. The Distrace tool does not implement data collection service as many services exist for this purpose. 
 
-Data collected within spans are internally represented in JSON format understandable by the Zipkin user interface. This is also the reason why the thesis contains support for working with JSON data and it is explained in more detail later in the Chapter \ref{chap:implementation}. This format can be again changed by the custom span exporter.
+Data collected within spans are internally represented in JSON format understandable to the Zipkin user interface. This is also the reason why Distrace contains support for working with JSON data and it is explained in more detail later in the Section \ref{json_gen}. This output format can be customized by the custom span exporter.
 
 Span exporter implementations need to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporter, however the developer may use any format in case of custom span exporters. The common ancestor, \texttt{SpanExporter} abstract class has two abstract methods:
 \begin{itemize}
@@ -427,6 +427,7 @@ The user can create custom span exporter and interceptors by either inheriting t
 Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it is only required to obtain \texttt{Class} object representing the available implementation. Therefore a custom service loader was created for this purpose. This loader works in very similar way as the standard Java one, but instead of returning the instances of loaded services it just returns classes of available services. 
 
 \subsection{JSON Generation}
+\label{json_gen}
 The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
 
 The JSON handling is based on the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
