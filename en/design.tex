@@ -212,51 +212,15 @@ The Distrace tool includes two default implementation of span exporters, but als
 
 Data collected within spans are internally represented in JSON format understandable to the Zipkin user interface. This is also the reason why Distrace contains support for working with JSON data and it is explained in more detail later in the Section \ref{json_gen}. This output format can be customized by the custom span exporter.
 
-Span exporter implementations need to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporter, however the developer may use any format in case of custom span exporters. The common ancestor, \texttt{SpanExporter} abstract class has two abstract methods:
-\begin{itemize}
-	\item \texttt{export}. This method is used for exporting the span. Custom span exporter implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{saveSpan} method is called asynchronously in a separated thread to allow asynchronous span processing, which has a performance benefit.
-	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span exporter. Each span exporter is responsible for parsing the span exporter arguments.
-\end{itemize}
-
-As mentioned above, the tool provides two default simple span exporters:
-\begin{itemize}
-	\item  \texttt{DirectZipkinExporter} - The default span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by any data collection agent. In this case, the functionality of the span exporter and the data collector are handled by this single exporter. 
-	This span exporter should be used only for demonstration purposes, since it could overload the user interface or network when processing high number of spans, because the Zipkin user interface is not prepared to handle and store large amount of data in the memory. 
-	
-	This exporter accepts a single argument, which is an IP address and port of the Zipkin UI service. The Figure \ref{fig:zipkin_span_exporter} shows, how the Zipkin span exporter is used.
-	
-		\begin{figure}
-			\centering
-			\includegraphics[scale=0.6]{zipkin_span_exporter.png}
-			\caption{Using the Zipkin span exporter to export spans directly to Zipkin user interface without the data collector agent.}
-			\label{fig:zipkin_span_exporter}
-		\end{figure}
-	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
-	\begin{figure}
-		\centering
-		\includegraphics[scale=0.5]{disk_span_exporter.png}
-		\caption{Using the JSON disk exporter together with the data collection service but Zipkin user interface .}
-		\label{fig:disk_span_exporter}
-	\end{figure}
-\end{itemize}
-Additionally, the Figure \ref{fig:custom_span_exporter} shows how a custom span exporter may be used.
-
-\begin{figure}
-	\centering
-	\includegraphics[scale=0.5]{custom_span_exporter.png}
-	\caption{Using custom span exporter together with the data collection service and custom user interface.}
-	\label{fig:custom_span_exporter}
-\end{figure}
-In order to give the developer the flexibility to add new exporters without changing the internals, the span exporters have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanExporter} abstract class. The reason why the classes need to be discovered is explained in the following Section \ref{native_agent_design}
-
-To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} is used. Instead of manually registering the implemented span exporters into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanExporter}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
-
+The implementation details are available at the Section \ref{imp:exporter}.
 \subsection{Trace Context}
-Trace context is a class used for storing the information about the current span and also for creating new spans and closing current spans. Trace context is always attached to a specific thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Singleton instance of class \texttt{TraceContextManager} is used for attaching the threads to the trace contexts and vice-versa. It has a few methods allowing the developer to attach trace context to a specific thread and also to get trace context which is attached to a current thread.
+Trace context is used for storing the information about the current span and also for creating new spans and closing current spans. Trace context can be attached to a specific object and thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Trace Context Manager is used for attaching trace context to threads and vice-versa. It provides several operations allowing to the developer to attach trace context to a specific thread and also to get trace context from a specific thread.
 
-Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can't have the same identifier. The identifiers are created in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via a published native method \texttt{getTypeOneUUID}.
+Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the actual timestamp. This way it is ensured that two traces created at the same time on different nodes can not have the same identifier. The identifiers are generated in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via published native operation \texttt{getTypeOneUUID}.
 
-The trace contact has methods \texttt{openNestedSpan} and \texttt{closeCurrentSpan}. The first method is used to create a new nested span and set the newly created span as the current one. Nested span is a span which sets its parent id to the current span. A root span is created in case when no current span exists. The second method is used to close the current span. Closing the span triggers the span exporting operation using the configured span exporter and the parent span becomes the current span. The Figure \ref{fig:closing_spans} shows how spans are created, closed and exporter. \begin{figure}
+The trace contact has \texttt{openNestedSpan} and \texttt{closeCurrentSpan} operations. The first operation is used to create a new nested span and set the newly created span as the current one. Nested span is opened within the scope of its parent span and remembers the parent span. A root span is created in case no current span exists. The second operation is used to close the current span.
+
+The second operation closes the the current span. This consist of two actions. The current span is exported using the configured span exporter and the parent span becomes the current span. The Figure \ref{fig:closing_spans} shows how spans are created, closed and exported. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{closing_spans.png}
 	\caption{Creating and closing spans.}
