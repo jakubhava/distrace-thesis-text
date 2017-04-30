@@ -15,7 +15,7 @@ As mentioned in the previous chapter, the Distrace tool provides two default sim
 	\item  \texttt{DirectZipkinExporter} - The default span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by any data collection agent. In this case, the functionality of the span exporter and the data collector are handled by this single exporter. 
 	This span exporter should be used only for demonstration purposes, since it could overload the user interface or network when processing high number of spans, because the Zipkin user interface is not prepared to handle and store large amount of data in the memory. 
 	
-	This exporter accepts a single argument, which is an IP address and port of the Zipkin UI service. The Figure \ref{fig:zipkin_span_exporter} shows, how the Zipkin span exporter is used.
+	This exporter accepts a single argument, which is an IP address and port of the Zipkin user interface. The Figure \ref{fig:zipkin_span_exporter} shows, how the Zipkin span exporter is used.
 	
 	\begin{figure}
 		\centering
@@ -23,7 +23,7 @@ As mentioned in the previous chapter, the Distrace tool provides two default sim
 		\caption{Using the Zipkin span exporter to export spans directly to Zipkin user interface without the data collector agent.}
 		\label{fig:zipkin_span_exporter}
 	\end{figure}
-	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin UI for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
+	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin user interface for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.5]{disk_span_exporter.png}
@@ -123,15 +123,64 @@ Each part of the class file mentioned above is parsed separately. For accessing 
 
 Parsing the magic id and both minor and major versions is straightforward as their are just numbers and can be read using the byte reader class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. The constant can be of several type such as constant representing the Class symbol, String symbol, Method types of Field types for example. Once the Constant pool is parsed, it can be queried for the specific symbol by its id. Class name and super class name, interfaces, fields and methods are read from the constant pool by using their ids.
 
-\section{Instrumentation Server Optimizations}
+\section{Instrumentation Server}
+
+\subsection{Instrumentation}
+\label{impl:server:instr}
+The code to be instrumented is specified using the \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
+The instrumentation server expects the instance of \texttt{MainAgentBuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToHelperClasses)}, where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class, which is used to define the class transformers.
+
+The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the Section \ref{sec:byte_buddy}. The server provides several helper methods for creating the transformers and interceptors, which are less verbose then the standard Byte Buddy approaches.
+
+Each transformer has to have associated either an interceptor or advice defining the code to be injected to the original code. Each interceptor implementation has to implement \texttt{Interceptor} interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span exporters mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface. 
+
+The advices may be used without any special annotations since Byte Buddy in-lines the code defined by the advices into the original code and therefore there is no need to transfer the Advice classes to monitored application.
+
+Even though Byte Buddy takes care about the internals of the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation is defined exactly as desired. The class implements four Byte Buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
+\begin{itemize}
+	\item \texttt{onTransformation} listener is called immediately before the class is instrumented.  Implementation of the listener in the thesis also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
+	\item \texttt{onIgnored} listener is called when the class is not instrumented. The class is not instrumented when the user does not define any transformer for the specified class.
+	\item \texttt{onError} listener is called when some exception occurred during the instrumentation.
+	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners.
+\end{itemize}
+
+Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is overridden in the child class. The dependencies are all the classes specified in the class file such as type of the methods return value or arguments, super class or implemented interfaces. 
+By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw bytecode of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network, custom \texttt{InstrumentorClassloader} class loader is used to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
+
+However, Byte Buddy internal API does not work with raw bytecode for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and created instance contains metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second class is used for caching the type descriptions so they are not created every time the class is accessed. 
+
+So in overall, class lookup is done in the following two steps:
+\begin{enumerate}
+	\item Check whether type description for the class is available. If yes, load the type description from the cache.
+	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for the class and put it in the cache.
+\end{enumerate}
+
+\subsection{Optimizations}
 The instrumentation server does several optimizations to speed the communication with the native agent. The first optimization is caching of the classes sent to the instrumentation server from the native agent and also caching of the already instrumented classes. This behavior is useful in case we are using the shared instrumentation server. In this case multiple native agents are sharing the same instrumentation server. When a class is received from any agent, it is cached and the rest of the native agents don't need to send the original class again. The instrumentation server also performs the instrumentation only once and caches the instrumented class. When any agent requests to instrument already instrumented class on the server, the server just sends the class immediately from the cache.
 
 The other way how the communication can be optimized can be influenced by the user. The user may compile the extended instrumentation server with the application classes or add these classes on the classpath of the server. When a native agent asks the server for instrumenting some class, the server first check if it can load the original class itself locally and avoid sending the bytecode from the native agent. 
-\section{Span Injection on Instrumentation Server}
+\subsection{Span Injection}
 This short section explains how additional fields such as the span information are internally attached to the instrumented classes. The trace information is attached to the instrumented class by adding a new synthetic field with name \texttt{\_\_\_\_traceId}. This trace id represents the current trace and is used in the code to obtain reference to a current trace context and also current span.  A new field is created using the Byte Buddy instrumentation builder using the \texttt{defineField} method.
-\section{Determine the Current Span Exporter}
+\subsection{Determine the Current Span Exporter}
 This section explains how a span exporter type and also other arguments passed to the native agent are made accessible to the instrumentation server. The span exporter type is defined as part of the native agent and needs to be available at the instrumentation server as well. This is achieved by creating and registering the native method to a class, which is defined as part of the instrumentation server.
 In case of span exporters, the abstract class \texttt{SpanExporter} is defined at the instrumentation server and contains native native method named \texttt{getSpanExporterType} for getting the span exporter type. The abstract \texttt{SpanExporter} class is sent to the native agent during the initialization phase. When this class is required for the first time, the native method implementation is bound to the method \texttt{getSpanExporterType} defined in the \texttt{SpanExporter} class. Therefore, even the classes defined as part of the instrumentation server can use methods defined on the native agent with really small overhead. Actually, there may be a performance gain, since these methods are written as native methods.
 
+\subsection{JSON Generation}
+\label{json_gen}
+The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin user interface they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
+
+The JSON handling is based on the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
+
+This JSON support is designed via several classes:
+\begin{enumerate}
+	\item \textbf{JSONValue}. The abstract ancestor of all JSON types. This type defines common methods to all implementation.
+	\item \textbf{JSONString}. Class representing the string type.
+	\item \textbf{JSONNumber}. Class representing the numeric types.
+	\item \textbf{JSONLiteral}. Class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
+	\item \textbf{JSONArray}. Class representing the JSON arrays. It has support for adding new elements into the array.
+	\item \textbf{JSONObject}. Class representing the JSON objects. It has support for adding a new items in the object.
+\end{enumerate}
+
+Each \textbf{JSONValue} can be printed as valid JSON string where the printing is driven by\texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
 
 

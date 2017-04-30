@@ -89,7 +89,7 @@ The extendable modules should be the interface presenting the observed data and 
 The main reason for this solution is that a lot of monitoring frameworks already exist. For example, an user interface provided by some different tool may be already deployed or some platform with already defined data collection may be used. The thesis tries to support these use-cases and tries to minimize the changes of the environment where this monitoring tool runs. This also leads to easier deployment of the platform. 
 
 \subsection{Selection of the User Interface}
-Zipkin UI was selected as the default user interface for the Distrace tool. The main reasons for its selection were the simplicity of the interface and ease of use. It also fulfills our visualization requirements as it allows the user to see dependencies between spans and also whole trace tree as well. However, as mentioned above, the monitoring platform is not tightly-coupled to this user interface. It is described later in the thesis how the user can create a plug-in allowing to use custom user interface.
+Zipkin user interface was selected as the default user interface for the Distrace tool. The main reasons for its selection were the simplicity of the interface and ease of use. It also fulfills our visualization requirements as it allows the user to see dependencies between spans and also whole trace tree as well. However, as mentioned above, the monitoring platform is not tightly-coupled to this user interface. It is described later in the thesis how the user can create a plug-in allowing to use custom user interface.
 
 \section{Summary of Features}
 This section just summarize the list of desired and not-desired features based on the previous background and analysis.

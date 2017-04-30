@@ -150,7 +150,7 @@ The developer should extend the base instrumentation server to instrument the cl
 		\label{fig:example_extended}
 	\end{figure}
 
-The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin UI. The default IP address and port of the user interface is used when it's not explicitly configured as the native agent argument.
+The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin user interface. The default IP address and port of the user interface is used when it's not explicitly configured as the native agent argument.
 
 A single collected trace from this application should look as shown on the Figure \ref{fig:example_trace}.
 
@@ -331,80 +331,34 @@ The instrumentation of the class is triggered by the agent and it's done in two 
 	\item If not, check if the class can be loaded using the server's context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the classes on the server classpath for optimization reasons.
 \end{enumerate}
 
-The server informs the agent if it does not have the bytecode for the class available and in that case  the agent sends the class to the server. The server registers the received bytecode under the class name. The agent therefore does not have to send the class next time since it's already cached on the instrumentation server.
-The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the instrumented class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
+The server informs the agent if it does not have the bytecode for the class available. In that case, the agent sends the class to the server and the server registers the received bytecode under the class name. Therefore, the agent does not have to send the class next time since it's already cached on the instrumentation server.
+The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the transformed class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
 
-The code to be instrumented is specified using the \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
-The instrumentation server expects the instance of \texttt{MainAgentBuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToHelperClasses)}, where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class, which is used to define the class transformers.
-
-The developer needs to implement this method and specify on which classes and on which methods the instrumentation should happen. Since Byte Buddy is used for writing transformers and interceptors, please read more about Byte Buddy in the Section \ref{sec:byte_buddy}. The server provides several helper methods for creating the transformers and interceptors, which are less verbose then the standard Byte Buddy approaches.
-
-Each transformer has to have associated either an interceptor or advice defining the code to be injected to the original code. Each interceptor implementation has to implement \texttt{Interceptor} interface. This is required for the server to be able to discover all interceptors at run-time without the need for changing the internals of the server. Each implementation of the interceptor needs to register itself in the META-INF directory of the generated JAR in the same way as the span exporters mentioned in the previous section. Custom service loader is then used to locate all classes implementing the \texttt{Interceptor} interface. 
-
-The advices may be used without any special annotations since Byte Buddy in-lines the code defined by the advices into the original code and therefore there is no need to transfer the Advice classes to monitored application.
-
-Even though Byte Buddy takes care about the internals of the instrumentation, the \texttt{BaseAgentBuilder} class is internally properly configured so the instrumentation is defined exactly as desired. The class implements four Byte Buddy listeners used for informing us about the instrumentation progress and allow us to react on the process of the instrumentation. The listeners are:
-\begin{itemize}
-	\item \texttt{onTransformation} listener is called immediately before the class is instrumented.  Implementation of the listener in the thesis also sends the agent all auxiliary classes required by the instrumented class and the initializers used for setting the static interceptor field on the instrumented class.
-	\item \texttt{onIgnored} listener is called when the class is not instrumented. The class is not instrumented when the user does not define any transformer for the specified class.
-	\item \texttt{onError} listener is called when some exception occurred during the instrumentation.
-	\item \texttt{onComplete} listener is called when instrumentation process completed. It is called after both of \texttt{onTransformation} and \texttt{onIgnored} listeners.
-\end{itemize}
-
-Byte buddy requires dependencies for the instrumented class to be available. They are needed because the instrumentation framework needs to know signature of all methods in several cases, for example when the method is overridden in the child class. The dependencies are all the classes specified in the class file such as type of the methods return value or arguments, super class or implemented interfaces. 
-By default, Byte Buddy tries to find these dependencies using two classes - \texttt{LocationStrategy} and \texttt{PoolStrategy}. The first class is used to tell Byte Buddy where to look for the raw bytecode of dependent classes. The classes are loaded by context class loader by default, but since the classes are received over the network, custom \texttt{InstrumentorClassloader} class loader is used to handle the class loading. It is a simple class loader which keeps the cache of the classes received from the agent and when a request for instrumentation comes, instead of looking into the class files, it loads the data from the cache in the memory.
-
-However, Byte Buddy internal API does not work with raw bytecode for scanning the further dependencies and obtaining the metadata for the classes. It uses classes \texttt{TypeDescription} and \texttt{PoolStrategy} for this purpose. The first class has a constructor accepting the \texttt{Class} class and created instance contains metadata for the class such as the signature of all methods and fields, list of all interfaces or for example list of constructors. The second class is used for caching the type descriptions so they are not created every time the class is accessed. 
-
-So in overall, class lookup is done in the following two steps:
-\begin{enumerate}
-	\item Check whether type description for the class is available. If yes, load the type description from the cache.
-	\item If the type description is not available, load the class using the \newline \texttt{InstrumentorClassloader}, create type description for the class and put it in the cache.
-\end{enumerate}
-
+More information about instrumentation process on the server is described in more details in the Section \ref{impl:server:instr}.
 \subsection{Custom Service Loader}
-In order to allow the developer to extend the base instrumentation library service loaders for loading the extensions are used. The service loader is used for two object types: 
+Service loaders are used for loading the extensions to the Distrace tool and creating the extended instrumentation server. The service loader is used for two object types: 
 \begin{itemize}
-	\item \textbf{Custom span exporters} - Each span exporter inherits from the abstract class \texttt{SpanExporter}.
+	\item \textbf{Custom span exporters} - Each span exporter inherits from the abstract \texttt{SpanExporter} class.
 	\item \textbf{Custom Interceptors} - Each interceptor has to implement the interface \texttt{Interceptor}.
 \end{itemize} 
-The user can create custom span exporter and interceptors by either inheriting the desired class or implementing the required interface and put the name of the class inside the text file in the META-INF directory in the JAR file. The text file has to have the same name as the abstract class or the interface the implementation is for. For example, when user creates a new Interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} in the META-INF folder has to contain line \textbf{x.y.InterceptorA}.
+The user can create custom span exporters and interceptors by either inheriting the desired class or implementing the required interface. In order to allow the platform to locate the custom implementations, the name of the class has to be written inside the text file in the META-INF directory in the extended instrumentation server JAR file. The text file has to have the same name as the abstract class or the interface the particular implementation is for. For example, when the user creates a new interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} in the META-INF folder has to contain line \texttt{x.y.InterceptorA}.
 
-Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it is only required to obtain \texttt{Class} object representing the available implementation. Therefore a custom service loader was created for this purpose. This loader works in very similar way as the standard Java one, but instead of returning the instances of loaded services it just returns classes of available services. 
-
-\subsection{JSON Generation}
-\label{json_gen}
-The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin UI they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
-
-The JSON handling is based on the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
-
-This JSON support is designed via several classes:
-\begin{enumerate}
-	\item \textbf{JSONValue}. The abstract ancestor of all JSON types. This type defines common methods to all implementation.
-	\item \textbf{JSONString}. Class representing the string type.
-	\item \textbf{JSONNumber}. Class representing the numeric types.
-	\item \textbf{JSONLiteral}. Class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
-	\item \textbf{JSONArray}. Class representing the JSON arrays. It has support for adding new elements into the array.
-	\item \textbf{JSONObject}. Class representing the JSON objects. It has support for adding a new items in the object.
-\end{enumerate}
-
-Each \textbf{JSONValue} can be printed as valid JSON string where the printing is driven by\texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
+Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it is only required to obtain \texttt{Class} object representing the available implementation. Therefore a custom service loader was created. This service loader works in very similar way as the standard Java implementation, but instead of returning the instances of loaded services, it just returns classes representing the available services. 
 
 \section{User Interface}
 \label{sec:zipkin_ui}
-The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface instead of sending the data back on forth to send them as one single complete span.
+The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allows the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface, instead of sending the data back and forth to send them as one single complete span.
 
-The Distrace tool is using Zipkin as default user interface. The default data format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporter class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
-
+The Distrace tool is using Zipkin as default user interface. The default format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporters. This section gives an overview of Zipkin user interface and describes the Zipkin data model. The example output of a single trace in the Zipkin user interface can be seen on the Figure \ref{fig:zipkin_ui}.
 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.5]{zipkin_ui_example.png}
-	\caption{Example of Zipkin UI}
+	\caption{Example of trace output in the Zipkin user interface.}
 	\label{fig:zipkin_ui}
 \end{figure}
 
-Each span in the UI is clickable and all the additional information can bee seen at that level. In this thesis the stack trace are also collected at each span for monitoring purposes. Example of such information screen can be seen on the Figure \ref{fig:zipkin_ui_detail}.
+Each span in the user interface is clickable and all the additional information can bee seen at that level. The Distrace tool also automatically collects the stack trace at the time of span creation and closing. Example of such information screen can be seen on the Figure \ref{fig:zipkin_ui_detail}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.4]{zipkin_ui_detail.png}
@@ -412,29 +366,29 @@ Each span in the UI is clickable and all the additional information can bee seen
 	\label{fig:zipkin_ui_detail}
 \end{figure}
 \subsection{Zipkin Data Model}
-Zipkin requires data to be sent in JSON format. Requests to UI are sent as JSON arrays where the array elements are the spans. Zipkin understands the following fields of Span object:
+Zipkin requires data to be sent in JSON format. Requests to the user interface are sent as JSON arrays, where the array elements are the spans. Zipkin understands the following attributes of span object:
 \begin{itemize}
 	\item \textbf{traceId} - unique id representing the complete trace. It can be either 128 or 64 bit long.
-	\item \textbf{name} - human readable span name
-	\item \textbf{id} - id of this span. At the current implementation, Zipkin UI supports span ids only to be 64-bit long.
+	\item \textbf{name} - human readable span name.
+	\item \textbf{id} - id of this span. At the current implementation, Zipkin user interface supports span ids only to be 64-bit long.
 	\item \textbf{parentId} - parent id of the current span.
-	\item \textbf{timestamp} - the time when the span was created.
-	\item \textbf{duration} - the duration of the span. It is the duration between the span creation and span closing.
-	\item \textbf{annotations} - array containing standard Zipkin annotations. These annotations can be handled by user interface in specific way since the user interface understands the meaning of the content. The documentation specifies the following annotations:
+	\item \textbf{timestamp} - the time of the span creation.
+	\item \textbf{duration} - the duration of the span. It is the duration between the span creation and closing.
+	\item \textbf{annotations} - array containing standard Zipkin annotations. These annotations can be handled by the user interface in a specific way, since the user interface understands the meaning of content of these annotations. Following annotations are available:
 	\begin{itemize}
-		\item \textbf{cr} : timestamp of client receiving the span
-		\item \textbf{cs} : timestamp of client sending the span
-		\item \textbf{sr} : timestamp of server receiving the span
-		\item \textbf{ss} : timestamp of server sending the span
-		\item \textbf{ca} : client address
-		\item \textbf{sa} : server address
+		\item \textbf{cr} : timestamp of client receiving the span.
+		\item \textbf{cs} : timestamp of client sending the span.
+		\item \textbf{sr} : timestamp of server receiving the span.
+		\item \textbf{ss} : timestamp of server sending the span.
+		\item \textbf{ca} : client address.
+		\item \textbf{sa} : server address.
 	\end{itemize}
-	\item \textbf{binaryAnnotations} - array of custom annotations. For example collected stack traces are sent as a binary annotation.
+	\item \textbf{binaryAnnotations} - array of custom annotations. For example, collected stack traces are sent as a binary annotation.
 \end{itemize}
 
-Except the \textit{annotations} and \textit{binaryAnnotations} fields, the fields are of simple string or number type. Annotations are objects with the three fields - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port at the code where the span or particular annotation was recorded. Endpoints can also specify service name which may be used to search for particular spans.
+Except the \textbf{annotations} and \textbf{binaryAnnotations} attributes, the attributes are of simple string or number type. Annotations are objects consisting of three additional attributes - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans.
 
-Full example of data sent to Zipkin can be:
+Full example of data sent to Zipkin user interface can be:
 \begin{lstlisting}[emph={traceId, name, id, timestamp, duration, annotations, value, endpoint, serviceName, ipv4, port, binnaryAnnotations, key},emphstyle={\textbf}]
 [
  {
