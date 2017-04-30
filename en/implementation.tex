@@ -43,6 +43,22 @@ Additionally, the Figure \ref{fig:custom_span_exporter} shows how a custom span 
 In order to give the developer the flexibility to add new exporters without changing the internals, the span exporters have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanExporter} abstract class. The reason why the classes need to be discovered is explained in the following Section \ref{native_agent_design}
 
 To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} is used. Instead of manually registering the implemented span exporters into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanExporter}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
+
+\subsection{Trace Context API}
+\label{imp:trace_context_api}
+The following methods can be used for obtaining and attaching the trace context:
+\begin{itemize}
+	\item \texttt{static create()} - creates a new trace context.
+	\item \texttt{static getFromObject(holder)} - gets the existing trace context from the holder object.
+	\item \texttt{static getFromThread(thread)} - gets the existing trace context from the specified thread.
+	\item \texttt{static getFromCurrentThread()} -  gets the existing trace context from the current thread.
+	\item \texttt{attachOnObject(holder)} - attaches the trace context to the holder object.
+	\item \texttt{attachOnThread(thread)} - attaches the trace context to the specified \newline thread.
+	\item \texttt{attachOnCurrentThread()} - attaches the trace context to the current \newline thread.
+	\item \texttt{deepCopy} - creates a deep copy of the trace context. It is usually used in cases where child spans are processes in parallel by multiple threads. In this case, the copy of trace context with the same id is shared among all these threads, but they operate on very own object. This is done in order to be able to monitor parallel spans within a single trace without having to face race conditions on a single trace context object.
+\end{itemize}
+
+The methods above can also be chained and, for example, a trace context can be obtained from the holder object, deep copy created and the newly created copy attached to a new holder object.
 \section{Native Agent}
 The native agent consists of several interesting technical parts. This section covers the instrumentation itself and also explains considered approaches during the development. The problem of instrumentation server requiring the dependencies for each instrumented class is explained together with the problem of instrumenting the classes with cyclic dependencies. The final solution is explain as well. 
 
