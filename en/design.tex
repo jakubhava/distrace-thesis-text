@@ -1,16 +1,16 @@
 \chapter{Design}
 \label{chap:design}
-This chapter describes design of the whole platform in details, however implementation specifics of some parts of the Distrace tool are described in the following Chapter \ref{chap:implementation}. The current chapter starts with the high-level overview of the complete platform and interactions between its parts. It is followed by a simple use-case to give the reader an idea how this tool is can be used.
+This chapter describes design of the whole platform in details, however implementation specifics of some parts of the Distrace tool are described in the following Chapter \ref{chap:implementation}. The current chapter starts with the high-level overview of the complete platform and interactions between its parts. It is followed by a simple use-case to give the reader an idea how the Distrace tool is can be used.
 
 Spans and their format are described next, followed by design of the native agent and instrumentation server. This chapter ends by description of the default Zipkin user interface and also JSON format, in which the user interface accepts the data from the instrumentation server. 
 
 \section{Overview}
 \label{design:overview}
-Main purpose of this tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be send to the user interface using various data collectors. Span exporters are used to export spans in desired format on disk or the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and present them to the user in a form of trace trees.
+Main purpose of the Distrace tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be send to the user interface using various data collectors. Span exporters are used to export spans in desired format on disk or the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and present them to the user in a form of trace trees.
 
 Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created extended instrumentation server is then used for instrumenting the classes of the original application, however spans are still located in the scope of the application itself. In order to obtain the class files for transformation, the native agent runs as part of the monitored application and sends the desired classes to the instrumentation server. The native agent is a core part of the whole platform. It is attached to the monitored application and additionally to providing the data to the instrumentation server, it is used to obtain various low-level information from the application. 
 
-The tool therefore consists of three main components:
+The Distrace tool therefore consists of three main components:
 \begin{itemize}
 	\item Native Agent
 	\begin{itemize}
@@ -214,7 +214,7 @@ Data collected within spans are internally represented in JSON format understand
 
 The implementation details are available at the Section \ref{imp:exporter}.
 \subsection{Trace Context}
-Trace context is used for storing the information about the current span and also for creating new spans and closing current spans. Trace context can be attached to a specific object and thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Trace Context Manager is used for attaching trace context to threads and vice-versa. It provides several operations allowing to the developer to attach trace context to a specific thread and also to get trace context from a specific thread.
+Trace context is used for storing the information about the current span and also for creating new spans and closing current spans. Trace context can be attached to a specific object and thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Trace context manager is used for attaching trace context to threads and vice-versa. It provides several operations allowing to the developer to attach trace context to a specific thread and also to get trace context from a specific thread.
 
 Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the actual timestamp. This way it is ensured that two traces created at the same time on different nodes can not have the same identifier. The identifiers are generated in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via published native operation \texttt{getTypeOneUUID}.
 
@@ -240,36 +240,35 @@ The developer responsible for extending the instrumentation server can use opera
 	\item \texttt{attachTraceToThread}
 	\item \texttt{attachTraceToObject}
 \end{itemize}
-More information about the Trace Context API is available at \ref{imp:trace_context_api}.
+More information about the trace context API is available at \ref{imp:trace_context_api}.
 
 There are also different variants of how spans can be closed. A span can be closed by the same node or thread who created it. In this case, attaching the trace context information to the current thread is usually sufficient. However, it is also possible that the span can be closed by different thread or node that originally created this span. In this case, the copy of the trace context should usually be created and attached to the object, which is used as the carrier of the trace context.
 \section{Native Agent}
 \label{native_agent_design}
-The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main agent task is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the instrumentation server and wait for the instrumented code.
+The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main task of the agent is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the server and wait for the instrumented code.
 
-The native agent consist of several parts. The most important parts are:
+The native agent consist of several modules. The most important ones are:
 \begin{itemize}
-	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the Chapter \ref{chap:implementation}.
-	\item \textbf{InstrumentorAPI}. \newline The \texttt{InstrumentorAPI} class provides several methods which are used to communicate with the instrumentation server JVM. All the queries to the server are done via instance of this class.
+	\item \textbf{Bytecode parsing module}. \newline The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the Section \ref{imp:parsing}.
+	\item \textbf{InstrumentorAPI}. \newline The \texttt{InstrumentorAPI} class provides several methods, which are used to communicate with the instrumentation server JVM. All the queries to the server go through the instance of this class.
 	\item \textbf{AgentCallbacks}. \newline All callbacks used in the native agent are defined in this namespace.
 	\item \textbf{AgentArgs}.  \newline The \texttt{AgentArgs} class contains all the logic required for argument parsing.
-	\item \textbf{NativeMethodsHelper}. \newline The \texttt{NativeMethodsHelper} class is used for registering native methods defined in C++. These methods can be later used from the Java code without worrying of the low-level implementation.
-	\item \textbf{Utilities module}. \newline This module contain several utility namespaces. The most important utility namespaces are \texttt{AgentUtils} and \texttt{JavaUtils}. The first one contains methods for managing the JVMTI connection and for registering the JVMTI callbacks and events. The second one is used to simplify work with Java objects in the native code via JNI. 
+	\item \textbf{NativeMethodsHelper}. \newline The \texttt{NativeMethodsHelper} class is used for registering native methods defined in C++. These methods can be used from the Java code without worrying about the low-level implementation.
+	\item \textbf{Utilities module}. \newline This module contains several utility namespaces. The most important are \texttt{AgentUtils} and \texttt{JavaUtils} namespaces. The first contains methods for managing the JVMTI connection and for registering the JVMTI callbacks and events. The second is used to simplify work with Java objects in the native code via JNI.
 \end{itemize}
 
 \subsection{Agent Initialization}
 The agent is initialized through the same phases as described in the Section \ref{subsec:jvmti_init}. The following JVMTI events are especially important to the thesis: \texttt{VM Init}, \texttt{VM Start}, \texttt{VM Death}, \texttt{Class File load Hook}, \texttt{Class Prepare} and \texttt{Class Load}. Callbacks are registered for all the mentioned events so the native agent can react to them accordingly in the code.
 
-As part of the initialization process, the agent is responsible for either connecting to or starting a new instrumentation server. In case the native agent was started in the shared mode of the instrumentation server, the agent tries to connect to already existing server and the server is shared between all application's nodes. In the local instrumentation mode, the instrumentation server is started as a separated process automatically and the connection is established with the server using the inter process communication. In this case, each application node has dedicated instrumentation server.
+As part of the initialization process, the agent is responsible for either connecting to or starting a new instrumentation server. In case the native agent was started in the shared mode of the instrumentation server, the agent tries to connect to already existing server and the server is shared between all  nodes of the distributed application. In the local instrumentation mode, the server is started as a separated process automatically and the connection is established with the server using the inter process communication. In this case, each application node has dedicated instrumentation server.
 
-The callback registered for the \texttt{VM Init} event is responsible for loading all additional classes from the instrumentation server as part of the initialization as well. The additional classes are for example \texttt{Span}, \texttt{TraceContext} or custom implementations of \texttt{SpanExporter} abstract class. These classes are used in the instrumented code and therefore have to be available to the monitored application. The native agent is designed in a way that developers are not supposed to change the code of if. All the extension are supposed to be done within the instrumentation server. Therefore, the instrumentation server is asked at the initialization phase for the list of all additional classes and they are sent to the native agent. The agent puts all the received classes on the application's class-path so they are available to the instrumented code.
+The callback registered for the \texttt{VM Init} event is responsible for loading all additional classes from the instrumentation server as part of the initialization as well. The additional classes are for example \texttt{Span}, \texttt{TraceContext} or custom implementations of \texttt{SpanExporter} abstract class. These classes need to be available at run-time at the monitored application. They are required since the instrumented code is using trace context and spans for preserving the information about the current trace and the exporters for exporting the spans from the application. Therefore, these classes have to be available at the monitored application. The native agent is designed in a way that developers are not supposed to change the code of if. All the extension are supposed to be done as part of the extended instrumentation server. Therefore, the server is asked at the initialization phase for the list of all additional classes and they are sent to the native agent. The agent puts all the received classes on the application's class-path so they are available to the instrumented code.
 
 \subsection{Instrumentation}
-Code for handling the instrumentation is part of the callback for the \texttt{Class File load Hook} event. The callback has the bytecode for the class being loaded as its input parameter and allow the developer to pass a new instrumented bytecode as the output parameter. The process of instrumentation is described here, however the technical details are described in the following chapter.
+Code for handling the instrumentation is part of the callback for the \texttt{Class File load Hook} event. The callback has the bytecode for the class being loaded as its input parameter and allows the developer to pass a new instrumented bytecode as the output parameter. The process of instrumentation is described at this section, however some technical details are described in the Chapter \ref{chap:implementation}.
 
 The process consist of several stages:
 \begin{enumerate}
-	
 	\item Enter the critical section. It can happen that the class file load hook is triggered multiple times and in order to not confuse the instrumentation server, the lock has to be acquired before the instrumentation of a class starts.
 	\item Firstly, the check whether the virtual machine is started is done. If the virtual machine is started and initialized, the instrumentation continues, otherwise the instrumentation for currently loaded class is skipped without asking the instrumentation server since it the class is a system class and it is not desired to instrument Java system classes at this moment.
 	\item Attach JNI environment to the current thread. Since the JVMTI and JNI does not have automatic thread management, it's up to the developer to take care of correct threading management.
@@ -290,17 +289,6 @@ Even though the class is fully instrumented and the instrumented bytecode is ava
 The callback for \texttt{Prepare} event is also used to register the native methods for the class being loaded. Registering the native method to the class makes it available from Java programming language.
 
 Several technical difficulties had to be dealt with during the development. For example,  cyclic dependencies when instrumenting the class had to be properly handled. Also ensuring that the dependencies for the instrumented class are also instrumented in the correct order has been a significant challenge. The different attempts for the solution and the final solution is described in the following chapter since it's highly implementation specific.
-\subsection{Instrumentation API}
-The Instrumentation API provides several methods used to communicate with the instrumentation server. It provides low-level methods for sending data in form of byte arrays or strings and the corresponding methods for receiving the data. On top of these method several methods are built to make the communication easier. The most important methods are:
-\begin{itemize}
-	\item \texttt{sendClassData} method sends bytecode to the instrumentation server.
-	\item \texttt{isClassOnInstrumentor} method checks whether the bytecode for the given class is already on the instrumentation server or not.
-	\item \texttt{instrument} method triggers the instrumentation and returns the instrumented bytecode.
-	\item \texttt{loadInitializersFor} method is for loading the initializers for specific class.
-	\item \texttt{loadDependencies} method is used to load all dependent classes and upload them on the instrumentation server. The dependency is uploaded only in case it's not already available on the instrumentation server.
-	\item \texttt{shouldContinue} method checks if the class on its input is allowed to be instrumented.
-	\item \texttt{loadPrepClasses} method loads all dependent classes in the agent initialization phase.
-\end{itemize}
 
 The behavior of the agent may be configured using the arguments passed to the agent. Please see the Attachment 4 for the full list of native agent arguments.
 
@@ -407,7 +395,7 @@ Each \textbf{JSONValue} can be printed as valid JSON string where the printing i
 
 \section{User Interface}
 \label{sec:zipkin_ui}
-The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow the tool to send part of data from the sender side and part of data from the receiver side directly to the user interface instead of sending the data back on forth to send them as one single complete span.
+The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allow the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface instead of sending the data back on forth to send them as one single complete span.
 
 The Distrace tool is using Zipkin as default user interface. The default data format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporter class. This section gives an overview of Zipkin user interface and describes the Zipkin data model
 

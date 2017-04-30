@@ -2,7 +2,6 @@
 \label{chap:implementation}
 This chapter explains several technical implementation details. It starts with explanation of the bytecode parsing and instrumentation at the native agent part of the complete tool. The following section covers relevant parts of the instrumentation server which are the instrumentation together with creation of transformers and estimators. This chapter ends with a brief explanation of how the spans are exported to the Zipkin user interface and also, how the spans can be exported to a custom data format.
 \section{Span and Trace Trees}
-
 \subsection{Span Exporters}
 \label{imp:exporter}
 Span exporter implementations need to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporter, however the developer may use any format in case of custom span exporters. The common ancestor, \texttt{SpanExporter} abstract class has two abstract methods:
@@ -11,7 +10,7 @@ Span exporter implementations need to extend from the abstract ancestor defining
 	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span exporter. Each span exporter is responsible for parsing the span exporter arguments.
 \end{itemize}
 
-As mentioned in the previous chapter, the tool provides two default simple span exporters:
+As mentioned in the previous chapter, the Distrace tool provides two default simple span exporters:
 \begin{itemize}
 	\item  \texttt{DirectZipkinExporter} - The default span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by any data collection agent. In this case, the functionality of the span exporter and the data collector are handled by this single exporter. 
 	This span exporter should be used only for demonstration purposes, since it could overload the user interface or network when processing high number of spans, because the Zipkin user interface is not prepared to handle and store large amount of data in the memory. 
@@ -81,7 +80,20 @@ instances and therefore their defining class has to be available in the applicat
 
 The auxiliary classes are classes created at run-time during the instrumentation on the server and have to be available on the applications machine as well. This is achieved by loading the bytecode for the auxiliary class, saving the class as a java class file on the disk and making it available by adding the class on the application's class path.
 
+\subsection{Instrumentation API}
+The Instrumentation API provides several methods used to communicate with the instrumentation server. It provides low-level methods for sending data in form of byte arrays or strings and the corresponding methods for receiving the data. On top of these method several methods are built to make the communication easier. The most important methods are:
+\begin{itemize}
+	\item \texttt{sendClassData} method sends bytecode to the instrumentation server.
+	\item \texttt{isClassOnInstrumentor} method checks whether the bytecode for the given class is already on the instrumentation server or not.
+	\item \texttt{instrument} method triggers the instrumentation and returns the instrumented bytecode.
+	\item \texttt{loadInitializersFor} method is for loading the initializers for specific class.
+	\item \texttt{loadDependencies} method is used to load all dependent classes and upload them on the instrumentation server. The dependency is uploaded only in case it's not already available on the instrumentation server.
+	\item \texttt{shouldContinue} method checks if the class on its input is allowed to be instrumented.
+	\item \texttt{loadPrepClasses} method loads all dependent classes in the agent initialization phase.
+\end{itemize}
+
 \subsection{Byte Code Parsing}
+\label{imp:parsing}
 Byte code parsing is necessary feature of the thesis and is required in order to be able to get the list of dependent classes on a class currently being loaded. No sufficient C++ implementation has not been found and therefore a custom parsing module has been implemented. The parsing module is based on the Apache Commons BCEL Java package and the simplified version but still with the same logic has been rewritten to C++.
 
 The main class used for parsing is \texttt{ClassParser} which contains \texttt{parse} method accepting the bytecode of a class and defines also several accessors  for the parsed data such as the super class name and complete reference, list of all implemented interfaces, list of all methods or list of all defined fields and their types.
