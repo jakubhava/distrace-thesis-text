@@ -66,9 +66,17 @@ The methods above can also be chained and, for example, a trace context can be o
 This section covers specific parts of the native agent in more detail. It starts with explanation of considered approaches for instrumentation during the development. The problem of instrumentation server requiring the dependencies for each instrumented class is explained together with the problem of instrumenting the classes with cyclic dependencies. The final solution is explain as well. Further, the instrumentation API, which is used for communication with the server, is explained. Last section describes the byte code parsing.
 \subsection{Instrumentation Details}
 \label{imp:native:inst}
-In general, the native agent does not perform the instrumentation but gets bytecode for the required class, sends the bytecode to the instrumentation server and applies the instrumented bytecode after receiving it from the client. 
+The native agent does not perform the instrumentation, but asks the server to carry out the transformation. The agent obtains the original bytecode for the class, sends the bytecode to the instrumentation server, waits for the transformed bytecode and lastly, applies the instrumented bytecode.
 
-The instrumentation server requires all dependencies to be available for the currently instrumented class. This means that all other classes mentioned as part of method and field signatures, super classes or interfaces has to be available on the instrumentation server. To achieve this, two solutions have been tried but only the second solution shown to be feasible.
+The instrumentation server requires all dependencies to be available for the the class currently being instrumented. This means that all other classes referenced inside the class file need to be available on the instrumentation server. This includes:
+\begin{itemize}
+	\item Argument types of all methods.
+	\item Return type of all methods.
+	\item Type of all fields.
+	\item Type of a super class.
+	\item Type of implemented interfaces.
+\end{itemize}
+The dependencies have to be loaded also for the referenced types. To achieve this, we tried two solutions, but only the second solution shown to be feasible.
 
 \subsubsection{Unsuccessful Solution}
 The first and unsuccessful solution was based on the fact that several on class file load hooks may be executed at several time in different threads. When the application loads a class, the class load hook event is triggered for it and its bytecode is made available. In this method, the new class file load hook event was artificially enforced via the \texttt{RetransformClasses} method. This method accepts array of classes for which the hook should be re-thrown. In order to continue with the instrumentation of the original class, all dependent classes have to be instrumented in this solution first. This also means that in this approach, the classes with cyclic dependencies are not supported. In order to instrumented such a class, all dependencies have to be instrumented first which is also the class itself.
