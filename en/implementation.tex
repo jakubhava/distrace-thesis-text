@@ -173,29 +173,33 @@ The second way how the communication can be optimized is influenced by the user.
 
 
 \subsection{Span Injection}
-This short section explains how additional fields such as the span information are internally attached to the instrumented classes. The trace information is attached to the instrumented class by adding a new synthetic field with name \texttt{\_\_\_\_traceId}. This trace id represents the current trace and is used in the code to obtain reference to a current trace context and also current span.  A new field is created using the Byte Buddy instrumentation builder using the \texttt{defineField} method.
-\subsection{Determine the Current Span Exporter}
-This section explains how a span exporter type and also other arguments passed to the native agent are made accessible to the instrumentation server. The span exporter type is defined as part of the native agent and needs to be available at the instrumentation server as well. This is achieved by creating and registering the native method to a class, which is defined as part of the instrumentation server.
-In case of span exporters, the abstract class \texttt{SpanExporter} is defined at the instrumentation server and contains native native method named \texttt{getSpanExporterType} for getting the span exporter type. The abstract \linebreak \texttt{SpanExporter} class is sent to the native agent during the initialization phase. When this class is required for the first time, the native method implementation is bound to the method \texttt{getSpanExporterType} defined in the \texttt{SpanExporter} class. Therefore, even the classes defined as part of the instrumentation server can use methods defined on the native agent with really small overhead. Actually, there may be a performance gain, since these methods are written as native methods.
+This short section explains how span and trace details are internally attached to the instrumented classes. The trace information is attached to the class by adding a new synthetic field with name \texttt{\_\_\_\_traceContext}. This trace context represents the current trace and is used in the code to obtain reference to a current trace context and also current span. This new field is created using the Byte Buddy instrumentation builder with the \texttt{defineField} method.
 
-The callback for \texttt{Prepare} event is also used to register the native methods for the class being loaded. Registering the native method to the class makes it available from Java programming language.
+
+\subsection{Determine the Current Span Exporter}
+This section explains how a span exporter type and also other arguments passed to the native agent are made accessible to the instrumentation server. The span exporter type is passed as the argument to the native agent and needs to be available at the instrumentation server as well. This is achieved by creating and registering the native method to a class, which is defined as part of the instrumentation server. In case of span exporters, the abstract class \texttt{SpanExporter} is defined at the instrumentation server and contains a native method named \texttt{getSpanExporterType}, which can is used to get the span exporter type.
+
+ The abstract \linebreak \texttt{SpanExporter} class is sent to the native agent during the initialization phase. When this class is required for the first time, the native method implementation is bound to the method \texttt{getSpanExporterType} defined in the \texttt{SpanExporter} class. Therefore, even the classes defined as part of the instrumentation server can use methods defined on the native agent with really small overhead. Actually, there may be a performance gain, since these methods are written as native methods.
+
+
 
 \subsection{JSON Generation}
 \label{json_gen}
-The data inside spans are internally stored as instances of \texttt{JSONValue} class since in order to support the communication with the default Zipkin user interface they need to be exported as JSON. JSON is a lightweight format for exchanging data where the syntax is based on Javascript object notation.
 
-The JSON handling is based on the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}, however custom simplified implementation was created which fits the theses requirements. Also the number of dependencies is lowered by this decision. 
+The collected data inside spans are internally stored as instances of \texttt{JSONValue} class representing any JSON value. JSON format is chosen since default Zipkin user interface expects spans in this format. JSON is a lightweight format for exchanging data with the syntax based on Javascript object notation.
+
+The JSON handling is inspired by the minimal-json library\footnote{The library is available at \url{https://github.com/ralfstx/minimal-json}.}. The simplified custom implementation was created which provides features required by the Distrace tool. Also the number of dependencies required to build is tool is lowered since this code is part of the Distrace sources.
 
 This JSON support is designed via several classes:
 \begin{enumerate}
-	\item \textbf{JSONValue}. The abstract ancestor of all JSON types. This type defines common methods to all implementation.
-	\item \textbf{JSONString}. Class representing the string type.
-	\item \textbf{JSONNumber}. Class representing the numeric types.
-	\item \textbf{JSONLiteral}. Class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
-	\item \textbf{JSONArray}. Class representing the JSON arrays. It has support for adding new elements into the array.
-	\item \textbf{JSONObject}. Class representing the JSON objects. It has support for adding a new items in the object.
+	\item \textbf{JSONValue} - The abstract ancestor for all JSON types. This type defines common methods to all implementation.
+	\item \textbf{JSONString} - A class representing string types.
+	\item \textbf{JSONNumber} - A class representing numeric types.
+	\item \textbf{JSONLiteral} - A class representing the literals \textbf{null}, \textbf{true} and \textbf{false}.
+	\item \textbf{JSONArray} - A class representing the JSON arrays. It has support for adding new elements into the array.
+	\item \textbf{JSONObject} - A class representing the JSON objects. It has support for adding a new items into the object.
 \end{enumerate}
 
-Each \textbf{JSONValue} can be printed as valid JSON string where the printing is driven by\texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer prints the data without any formatting as one line, however \texttt{JSONPrettyStringBuilder} prints the data in more human-readable format. The second printer is usually used for debugging purposes and the first one for real usage as the size of the data is smaller in this case.
+Each \textbf{JSONValue} can be exported as string where the printing is driven by the \texttt{JSONStringBuilder} class. This class is also responsible for escaping the characters according to JSON standards. The default printer exports the data without any formatting into a single text line, however \texttt{JSONPrettyStringBuilder} exports the data in more human-readable format. The second printer is usually used for the debugging purposes and the first one is used for exporting spans in real scenario as the size of the data is smaller in this case.
 
 
