@@ -60,14 +60,13 @@ The following methods can be used for obtaining and attaching the trace context:
 \end{itemize}
 
 The methods above can also be chained and, for example, a trace context can be obtained from the holder object, deep copy created and the newly created copy attached to a new holder object.
-\section{Native Agent}
-The native agent consists of several interesting technical parts. This section covers the instrumentation itself and also explains considered approaches during the development. The problem of instrumentation server requiring the dependencies for each instrumented class is explained together with the problem of instrumenting the classes with cyclic dependencies. The final solution is explain as well. 
 
-In the following part, the internals of how JVM bytecode is parsed is explained.
-\subsection{Instrumentation}
+
+\section{Native Agent}
+This section covers specific parts of the native agent in more detail. It starts with explanation of considered approaches for instrumentation during the development. The problem of instrumentation server requiring the dependencies for each instrumented class is explained together with the problem of instrumenting the classes with cyclic dependencies. The final solution is explain as well. Further, the instrumentation API, which is used for communication with the server, is explained. Last section describes the byte code parsing.
+\subsection{Instrumentation Details}
 \label{imp:native:inst}
 In general, the native agent does not perform the instrumentation but gets bytecode for the required class, sends the bytecode to the instrumentation server and applies the instrumented bytecode after receiving it from the client. 
-
 
 The instrumentation server requires all dependencies to be available for the currently instrumented class. This means that all other classes mentioned as part of method and field signatures, super classes or interfaces has to be available on the instrumentation server. To achieve this, two solutions have been tried but only the second solution shown to be feasible.
 
@@ -126,7 +125,6 @@ Each part of the class file mentioned above is parsed separately. For accessing 
 Parsing the magic id and both minor and major versions is straightforward as their are just numbers and can be read using the byte reader class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. The constant can be of several type such as constant representing the Class symbol, String symbol, Method types of Field types for example. Once the Constant pool is parsed, it can be queried for the specific symbol by its id. Class name and super class name, interfaces, fields and methods are read from the constant pool by using their ids.
 
 \section{Instrumentation Server}
-
 \subsection{Instrumentation}
 \label{impl:server:instr}
 The code to be instrumented is specified using the \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
