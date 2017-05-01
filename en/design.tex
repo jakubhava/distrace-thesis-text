@@ -399,9 +399,7 @@ Zipkin requires data to be sent in JSON format. Requests to the user interface a
 	\item \textbf{binaryAnnotations} - array of custom annotations. For example, collected stack traces are sent as a binary annotation.
 \end{itemize}
 
-Except the \textbf{annotations} and \textbf{binaryAnnotations} attributes, the attributes are of simple string or number type. Annotations are objects consisting of three additional attributes - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans.
-
-Full example of data sent to Zipkin user interface can be:
+Except the \textbf{annotations} and \textbf{binaryAnnotations} attributes, the attributes are of simple string or number type. Annotations are objects consisting of three additional attributes - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans. Full example of data sent to Zipkin user interface can be:
 \begin{lstlisting}[emph={traceId, name, id, timestamp, duration, annotations, value, endpoint, serviceName, ipv4, port, binnaryAnnotations, key},emphstyle={\textbf}]
 [
  {

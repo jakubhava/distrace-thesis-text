@@ -1,15 +1,14 @@
 \chapter{Implementation Details}
 \label{chap:implementation}
-This chapter explains several technical implementation details. It starts with explanation of the bytecode parsing and instrumentation at the native agent part of the complete tool. The following section covers relevant parts of the instrumentation server which are the instrumentation together with creation of transformers and estimators. This chapter ends with a brief explanation of how the spans are exported to the Zipkin user interface and also, how the spans can be exported to a custom data format.
-TODO: Rewrite into to this chapter
+This chapter explains several technical implementation details. The first section describes span exporters and API of Trace Context. The following section focuses on implementation details of the native agent and the last section focuses on the implementation details of the instrumentation server.
 
 \section{Span and Trace Trees}
-This section explains two implementation specific areas related to spans and trace trees. It describes span exporters in more detail and later gives  an overview of the Trace Context API. 
+This section explains two implementation specific areas related to spans and trace trees. It describes span exporters in more detail and gives an overview of the Trace Context API. 
 \subsection{Span Exporters}
 \label{imp:exporter}
 Implementation of span exporters have to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporters, however the developer may use any format in case of custom span exporters. \texttt{SpanExporter} abstract class is the common ancestor for each exporter and has two abstract methods:
 \begin{itemize}
-	\item \texttt{export}. This method is used for exporting the span. Custom span exporters implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{export} method is called asynchronously in a separated thread to allow asynchronous span exporting, which can lead to a performance benefit.
+	\item \texttt{export}. This method is used for exporting the span. Custom span exporters implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{export} method is called asynchronously in separated threads to allow asynchronous span exporting, which can lead to a performance benefit.
 	\item \texttt{parseAndSetArgs}. The native agent has configuration property, which the user can use to configure arguments for the span exporter. Each span exporter is responsible for parsing its own arguments.
 \end{itemize}
 
@@ -134,7 +133,9 @@ Each section of a class file is parsed separately. \texttt{ByteReader} class is 
 Parsing the magic id and both, minor and major versions, is straightforward as they are just numbers and can be read using the \texttt{ByteReader} class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. Each constant represent a specific object. For example a constant can represent a class, string, type of a field or return value and arguments of a method. Once the constant pool is parsed, it can be queried for the specific symbols using their id. Class name, super class name, interfaces, fields and methods are read from the constant pool using their ids.
 
 \section{Instrumentation Server}
-\subsection{Instrumentation}
+This section describes several technical parts of the instrumentation server. The details of the instrumentation itself are provided first, followed by an overview of the optimizations the server does to speed up the communication with the native agent. The next sections describes how trace context is injected to instrumented classes and how arguments passed to the native agent can be made accessible to the instrumentation server. The last section describes how JSON objects, which represent spans, are generated.
+
+\subsection{Instrumentation Details}
 \label{impl:server:instr}
 The code to be instrumented is specified using the \texttt{MainAgentBuilder} and \texttt{BaseAgentBuilder} classes.
 The instrumentation server expects the instance of \texttt{MainAgentBuilder} on the input of its \texttt{start} method. This is an abstract class containing single abstract method \texttt{createAgent(BaseAgentBuilder builder, String pathToHelperClasses)}, where the builder is a wrapper around the Byte Buddy \texttt{AgentBuilder} class, which is used to define the class transformers.
