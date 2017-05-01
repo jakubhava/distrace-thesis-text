@@ -4,8 +4,11 @@ This chapter firstly describes some known limitations of this tool. The further 
 \section{Known Limitations}
 There are a few limitations at the moment in the thesis which we would like to address in the future.
 \begin{itemize}
-	\item \textbf{ Required Java version} \newline
+	\item \textbf{Required Java version} \newline
 	Distrace requires Java 8 to be available. The platform has been tested on several Java 7 implementations and several internal Java bugs occurred. These problems are already fixed in the Java 8. Even though Java 7 is being replaced by Java 8, it still can be seen like a limitation of this tool.
+	\item \textbf{Overriden \texttt{getResourceAsStream} method} \newline
+	The instrumentation process requires that the \texttt{getResourceAsStream} is able to return class file for a class. However, developers may override the method and not provide the class files when we ask for them. When this happens and we are not able to load the class file using this method, another attempt to load the class file with different approach is done, however this is still a limitation of the Distrace tool.
+	
 	\item \textbf{Attaching Agent at Run-Time} \newline
 	Currently, the native agent has to be attached prior the application start using the \texttt{-agentlib} or \texttt{-agentpath} options. However, Java provides the attachment API allowing the agents to join at run-time of the application. This has the benefit that the application can be started without any additional arguments. The thesis contains the sub-project called \textbf{agent-attacher}, which is using the attachment API and attaches the agent to the running application, but currently, the agent does not perform any tasks when attached at run-time.
 	

@@ -158,6 +158,7 @@ Code generation is done by specifying from which class a new class should be sub
 
 The power behind Byte Buddy is also that it can be used to redefine classes at run-time. This is achieved by several concepts, mainly via Transformers, Interceptors and Advice API.
 \subsubsection{Code Transformation}
+\label{back:code_transform}
 In order to tell Byte Buddy what method or field to intercept, the place in code which triggers the interception has to be identified. First, a class containing the desired method for instrumentation needs to be located. It can be done by simply specifying the class name or using more complex structures. For example, the element matchers may be used to only consider all classes \texttt{A} extending class \texttt{B} whilst implementing interface \texttt{C} at the same time. 
 
 The next step is to define the \texttt{Transformer} class itself. Transformers are used to identify methods in the class, which should be instrumented, and they also specify the class responsible for the instrumentation itself. This class may be either Interceptor or Advice and their description is given in more detail in the following section. 
