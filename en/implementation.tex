@@ -2,32 +2,33 @@
 \label{chap:implementation}
 This chapter explains several technical implementation details. It starts with explanation of the bytecode parsing and instrumentation at the native agent part of the complete tool. The following section covers relevant parts of the instrumentation server which are the instrumentation together with creation of transformers and estimators. This chapter ends with a brief explanation of how the spans are exported to the Zipkin user interface and also, how the spans can be exported to a custom data format.
 \section{Span and Trace Trees}
+This section explains two implementation specific areas related to spans and trace trees. It describes span exporters in more detail and later gives  an overview of the Trace Context API. 
 \subsection{Span Exporters}
 \label{imp:exporter}
-Span exporter implementations need to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporter, however the developer may use any format in case of custom span exporters. The common ancestor, \texttt{SpanExporter} abstract class has two abstract methods:
+Implementation of span exporters have to extend from the abstract ancestor defining common methods for each span exporter. Also, in order to be able to use the exporter automatically in the code, it has to have a constructor with single \texttt{String} argument accepting exporter arguments. The arguments format is defined in the case of default span exporters, however the developer may use any format in case of custom span exporters. \texttt{SpanExporter} abstract class is the common ancestor for each exporter and has two abstract methods:
 \begin{itemize}
-	\item \texttt{export}. This method is used for exporting the span. Custom span exporter implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{saveSpan} method is called asynchronously in a separated thread to allow asynchronous span processing, which has a performance benefit.
-	\item \texttt{parseAndSetArgs}. The instrumentation agent accepts also special argument which contains arguments for the defined span exporter. Each span exporter is responsible for parsing the span exporter arguments.
+	\item \texttt{export}. This method is used for exporting the span. Custom span exporters implementation may save the data on local disk or send over network. The destination is not limited by the code. Internally, the \texttt{export} method is called asynchronously in a separated thread to allow asynchronous span exporting, which can lead to a performance benefit.
+	\item \texttt{parseAndSetArgs}. The native agent has configuration property, which the user can use to configure arguments for the span exporter. Each span exporter is responsible for parsing its own arguments.
 \end{itemize}
 
-As mentioned in the previous chapter, the Distrace tool provides two default simple span exporters:
+As mentioned in the Section \ref{design:exporter}, the Distrace tool provides two default implementations of span exporters:
 \begin{itemize}
-	\item  \texttt{DirectZipkinExporter} - The default span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by any data collection agent. In this case, the functionality of the span exporter and the data collector are handled by this single exporter. 
-	This span exporter should be used only for demonstration purposes, since it could overload the user interface or network when processing high number of spans, because the Zipkin user interface is not prepared to handle and store large amount of data in the memory. 
+	\item  \texttt{DirectZipkinExporter} -  This span exporter sends the collected span asynchronously to the user interface right away without storing the data on disk to be collected by any data collection agent. In this case, the functionality of the span exporter and the data collector are handled by this single exporter.
+	This span exporter should be used only for demonstration purposes, since it could overload the user interface or network when processing high number of spans, because the Zipkin user interface is not prepared to handle and store large amount of data in the memory. However, this is a default span exporter at this moment.
 	
-	This exporter accepts a single argument, which is an IP address and port of the Zipkin user interface. The Figure \ref{fig:zipkin_span_exporter} shows, how the Zipkin span exporter is used.
+	This exporter accepts a single argument, which is the IP address and port of the Zipkin user interface. The Figure \ref{fig:zipkin_span_exporter} shows, how the Zipkin span exporter is used.
 	
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.6]{zipkin_span_exporter.png}
-		\caption{Using the Zipkin span exporter to export spans directly to Zipkin user interface without the data collector agent.}
+		\caption{Using the Zipkin span exporter to export spans directly to Zipkin user interface without the data collection agent.}
 		\label{fig:zipkin_span_exporter}
 	\end{figure}
-	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected data asynchronously on disk in the format known to Zipkin user interface for future collection to the Zipkin user interface by custom data collector. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument which is a directory where collected spans are saved. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
+	\item  \texttt{JSONDiskExporter} - The second available span exporter saves the collected spans asynchronously on disk in the format known to the Zipkin user interface. The exported spans may be collected in the future by a custom data collection agent and for example, sent to the user interface or database. Together with some well-known data collection agent, this is a preferred way of transferring spans from the application to the Zipkin user interface in the production. This exporter accepts single argument, which is a destination directory for exported spans. The Figure \ref{fig:disk_span_exporter} shows how JSON disk span exporter is used.
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.5]{disk_span_exporter.png}
-		\caption{Using the JSON disk exporter together with the data collection service but Zipkin user interface .}
+		\caption{Using the JSON disk exporter together with the data collection agent together with the Zipkin user interface .}
 		\label{fig:disk_span_exporter}
 	\end{figure}
 \end{itemize}
@@ -36,12 +37,13 @@ Additionally, the Figure \ref{fig:custom_span_exporter} shows how a custom span 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.5]{custom_span_exporter.png}
-	\caption{Using custom span exporter together with the data collection service and custom user interface.}
+	\caption{Using custom span exporter together with the data collection agent and custom user interface.}
 	\label{fig:custom_span_exporter}
 \end{figure}
-In order to give the developer the flexibility to add new exporters without changing the internals, the span exporters have to be  registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanExporter} abstract class. The reason why the classes need to be discovered is explained in the following Section \ref{native_agent_design}
 
-To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} is used. Instead of manually registering the implemented span exporters into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation with a single argument specifying the abstract parent, in this case \texttt{SpanExporter}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
+In order to give the developer the flexibility to add new exporters without changing the internals, the custom service loader is used and the span exporters have to be registered in the META-INF directory of the extended instrumentation server JAR file. This ensures that the service loader can find all implementations of the \texttt{SpanExporter} abstract class. The reason why the classes need to be discoverable by the service loader is explained in the Section \ref{desing:native_initialization}.
+
+To make the developer life easier, the \textbf{AutoService} library\footnote{The AutoService library is available at \url{https://github.com/google}.} may used when extending the core server library. Instead of manually registering implementations of custom span exporters into META-INF directory, they can be annotated in the code using the \texttt{AutoService} annotation. This annotation takes a single argument specifying the abstract parent, in this case \texttt{SpanExporter}. The library takes care of registering the classes automatically in the desired folder in correct format so the human error is minimized.
 
 \subsection{Trace Context API}
 \label{imp:trace_context_api}
@@ -54,7 +56,7 @@ The following methods can be used for obtaining and attaching the trace context:
 	\item \texttt{attachOnObject(holder)} - attaches the trace context to the holder object.
 	\item \texttt{attachOnThread(thread)} - attaches the trace context to the specified \newline thread.
 	\item \texttt{attachOnCurrentThread()} - attaches the trace context to the current \newline thread.
-	\item \texttt{deepCopy} - creates a deep copy of the trace context. It is usually used in cases where child spans are processes in parallel by multiple threads. In this case, the copy of trace context with the same id is shared among all these threads, but they operate on very own object. This is done in order to be able to monitor parallel spans within a single trace without having to face race conditions on a single trace context object.
+	\item \texttt{deepCopy} - creates a deep copy of the trace context. It is usually used in cases where child spans are processes in parallel by multiple threads. In this case, the copy of trace context with the same id is shared among all these threads, but they operate on very own objects. This is done in order to allow monitoring of parallel spans within a single trace without having to face race conditions on a single trace context object.
 \end{itemize}
 
 The methods above can also be chained and, for example, a trace context can be obtained from the holder object, deep copy created and the newly created copy attached to a new holder object.

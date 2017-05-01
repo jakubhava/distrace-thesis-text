@@ -206,6 +206,7 @@ If the ids were not random at different nodes of the distributed system, the par
 	
 The following sections contain information about how spans are exported for processing outside of the Distrace tool and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager}.
 \subsection{Span Exporters \& Data Collectors}
+\label{design:exporter}
 Spans can be exported from the application using so called span exporters. The type of the exporter can be configured via one of the native agent configuration properties. It is important to mention that the exporter is configured globally and each span in the application is using the same exporter\footnote{Exporter is a static attributed of the \texttt{Span} entity.}. The monitored application needs to have the chosen span exporter available at run-time, since the export is performed at the scope of the monitored application. Therefore, exporters are sent to the native agent during the initialization phase and the agent puts the exporters on the application classpath.
 
 The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in the distributed application. The Distrace tool does not implement data collection service as many services exist for this purpose. 
@@ -258,6 +259,7 @@ The native agent consist of several modules. The most important ones are:
 \end{itemize}
 
 \subsection{Agent Initialization}
+\label{desing:native_initialization}
 The agent is initialized through the same phases as described in the Section \ref{subsec:jvmti_init}. The following JVMTI events are especially important to the thesis: \texttt{VM Init}, \texttt{VM Start}, \texttt{VM Death}, \texttt{Class File load Hook}, \texttt{Class Prepare} and \texttt{Class Load}. Callbacks are registered for all the mentioned events so the native agent can react to them accordingly in the code.
 
 As part of the initialization process, the agent is responsible for either connecting to or starting a new instrumentation server. In case the native agent was started in the shared mode of the instrumentation server, the agent tries to connect to already existing server and the server is shared between all  nodes of the distributed application. In the local instrumentation mode, the server is started as a separated process automatically and the connection is established with the server using the inter process communication. In this case, each application node has dedicated instrumentation server.
