@@ -1,6 +1,8 @@
 \chapter{Implementation Details}
 \label{chap:implementation}
 This chapter explains several technical implementation details. It starts with explanation of the bytecode parsing and instrumentation at the native agent part of the complete tool. The following section covers relevant parts of the instrumentation server which are the instrumentation together with creation of transformers and estimators. This chapter ends with a brief explanation of how the spans are exported to the Zipkin user interface and also, how the spans can be exported to a custom data format.
+TODO: Rewrite into to this chapter
+
 \section{Span and Trace Trees}
 This section explains two implementation specific areas related to spans and trace trees. It describes span exporters in more detail and later gives  an overview of the Trace Context API. 
 \subsection{Span Exporters}
