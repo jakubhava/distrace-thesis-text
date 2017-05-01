@@ -112,24 +112,24 @@ The \texttt{Instrumentation API} provides several methods used internally to com
 
 \subsection{Byte Code Parsing}
 \label{imp:parsing}
-Byte code parsing is necessary feature of the thesis and is required in order to be able to get the list of dependent classes on a class currently being loaded. No sufficient C++ implementation has not been found and therefore a custom parsing module has been implemented. The parsing module is based on the Apache Commons BCEL Java package and the simplified version but still with the same logic has been rewritten to C++.
+Byte code parsing is necessary feature of the Distrace tool and is required for discovering the list of all dependent classes of a class currently being loaded. No sufficient C++ implementation has been found and therefore, a custom parsing module has been implemented. Byte code parsing module in the Distrace tool is inspired by the Apache Commons BCEL library\footnote{More information about this library can be found at \url{https://commons.apache.org/proper/commons-bcel/}.} written in Java. We created very simplified C++ equivalent of this library with features required for our needs.
 
-The main class used for parsing is \texttt{ClassParser} which contains \texttt{parse} method accepting the bytecode of a class and defines also several accessors  for the parsed data such as the super class name and complete reference, list of all implemented interfaces, list of all methods or list of all defined fields and their types.
+The main entry point for parsing is the \texttt{ClassParser} class, which contains \texttt{parse} method accepting the bytecode of a class to be parsed. The \texttt{ClassParser} class also defines several accessors for the parsed information. For example, we can get name of the super class name, list of all implemented interfaces, list of all methods or list of all defined fields and their types.
 
-The bytecode starts with the several important parts:
+The bytecode structure consists of several parts:
 \begin{itemize}
-	\item \textbf{Magic id}. Magic id is a first integer stored in each bytecode and contains  always 0xCAFEBABE number.
-	\item \textbf{Version}. This part contains actually two shorts, where the first short represents minor Java version and the later one represents major Java version.
-	\item \textbf{Constant pool}. Constant pool is a table representing class and interface names, field names and also other important constants. It contains mapping from id representing the type to the fully qualified type name.
-	\item \textbf{Class Info}. Class information contains the information whether the bytecode represents a class or an interface, denotes class name and also super class name.
-	\item \textbf{Interfaces}. This part contains the number of interfaces this class implements followed by id of type short of each interface. The interface can be looked up using the class pool.
-	\item \textbf{Fields}. This part of the bytecode contains the number of fields this class defines together with some additional information for each defined field.
-	\item \textbf{Methods}. This part contains the number of defined methods in the bytecode together wit additional information per each method such as the number of arguments.
+	\item \textbf{Magic id} - Magic id is the first integer stored in each bytecode and is always set to 0xCAFEBABE hexadecimal number.
+	\item \textbf{Version} - Version consist of two numbers of \texttt{short} type. The first short represents minor Java version and the second major Java version.
+	\item \textbf{Constant pool} - Constant pool is a table, which contains mapping from id, representing a Java type, to the fully qualified type name. Id can represent interface names, field names and also other important constants.
+	\item \textbf{Class Info} - Class Info contains the information whether the currently parsed bytecode represents a class or an interface. It also contains name of this class and name of the parent class.
+	\item \textbf{Interfaces} - This part of bytecode contains the number of interfaces this class implements. This number is followed by id of type \texttt{short} for each interface. The fully qualified name of an interface can be looked up using the class pool.
+	\item \textbf{Fields}. This part of the bytecode contains the number of fields this class defines together with some additional information for each defined field. The fully qualified type of a field can be looked up using the class pool.
+	\item \textbf{Methods}. This part contains the number of defined methods in the bytecode together with some additional information for each method such as the number of arguments. The fully qualified types of return value and arguments of the method can be looked up using the class pool.
 \end{itemize}
-More information about class file structure can be found at the official Java documentation\footnote{The documentation of the class loading process is available at \url{https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html}}.
-Each part of the class file mentioned above is parsed separately. For accessing the raw bytecode a \texttt{ByteReader} class is used. It contains methods fro reading different types of data from the bytecode array. 
+More information about the class file structure can be found at the official Java documentation\footnote{The documentation of the class loading process is available at \url{https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html}.}.
+Each section of a class file is parsed separately. \texttt{ByteReader} class is used as a reader of the raw bytecode and contains several methods for reading different types of data from the bytecode array. 
 
-Parsing the magic id and both minor and major versions is straightforward as their are just numbers and can be read using the byte reader class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. The constant can be of several type such as constant representing the Class symbol, String symbol, Method types of Field types for example. Once the Constant pool is parsed, it can be queried for the specific symbol by its id. Class name and super class name, interfaces, fields and methods are read from the constant pool by using their ids.
+Parsing the magic id and both, minor and major versions, is straightforward as they are just numbers and can be read using the \texttt{ByteReader} class directly. Parsing of the constant pool is more complex. For each entry in the constant pool a constant representing the entry is read. Each constant represent a specific object. For example a constant can represent a class, string, type of a field or return value and arguments of a method. Once the constant pool is parsed, it can be queried for the specific symbols using their id. Class name, super class name, interfaces, fields and methods are read from the constant pool using their ids.
 
 \section{Instrumentation Server}
 \subsection{Instrumentation}
