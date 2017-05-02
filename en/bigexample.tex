@@ -60,7 +60,7 @@ The split method accept indices representing nodes in the cluster on which this 
 The last missing piece of information is a description of what is done when the node has more chunks available for the frame associated with the task since each \texttt{map} operation is executed only per single chunk. In case the node has multiple chunks available for the frame, the node always locally submits two new tasks into the F/J framework, each having half of the chunks. This is recursively repeated until we have single chunk tasks, which are processed normally. These locally-split tasks inform their parents that they are done. This signalization goes up the tree until the original task is marked finished.
 
 \subsection{Methods for Instrumentation}
-For purpose of this example, a special \texttt{MRTask} called \texttt{SumMRTask} has been created. This task just performs distributed sum of some range of numbers. In order to be able to visualize the computation process of this task, the following \texttt{MRtask} methods are important for the instrumentation
+For purpose of this example, a special \texttt{MRTask} called \texttt{SumMRTask} has been created. This task just performs distributed sum of a range of numbers. In order to be able to visualize the computation process of this task, the following \texttt{MRtask} methods are important for the instrumentation
 \begin{itemize}
 	\item \texttt{dfork} - this method is called at the initiator node and starts the computation of the whole task.
 	\item \texttt{getResult} - this method is called at the initiator and blocks until the distributed computation finishes.
