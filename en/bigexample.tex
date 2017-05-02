@@ -42,19 +42,18 @@ It is important to say that the \texttt{MRTask} is always distributed to all nod
 
 The computation on a single node is shown in the following pseudo-code:
 \begin{lstlisting}[language=Java]
- MRTask task = ... // task received from the parent or from the user
- MRTask left = split(task, start1, end1)
- MRTask right = split(task, start2, end2)
- remoteCompute(left)
- remoteCompute(right)
- H2O.submitTask(task) // submit this task into local F/J
-..
-// task is taken from F/J for execution
-task.map(..)
-task.waitForComplete() // wait for the child tasks to finish
-task.reduce(left, right)
-
-notifyComplete(task) // notify parent of completion
+	 MRTask task = ... // task received from the parent or from the user
+	 MRTask left = split(task, start1, end1)
+	 MRTask right = split(task, start2, end2)
+	 remoteCompute(left)
+	 remoteCompute(right)
+	 H2O.submitTask(task) // submit this task into local F/J
+	..
+	// task is taken from F/J for execution
+	task.map(..)
+	task.waitForComplete() // wait for the child tasks to finish
+	task.reduce(left, right)
+	notifyComplete(task) // notify parent of completion
 \end{lstlisting}
 The split method accept indices representing nodes in the cluster on which this sub-task and further sub-sub-tasks may be executed.
 
