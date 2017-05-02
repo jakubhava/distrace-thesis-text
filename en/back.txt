@@ -1,0 +1,426 @@
+Background
+chap:background
+This chapter covers technologies relevant to the thesis. It starts with an overview of similar monitoring tools for cluster-based applications and follows by short overview of tools used for debugging of large scale applications. Different approaches to applications profiling are described in the following part. 
+
+In the next several sections the technologies considered to be used in Distrace or used in thesis are introduced. The sections cover libraries for bytecode manipulation, communication, logging and also cover important relevant parts of Java libraries such as JNI and JVMTI. Docker is briefly described at the end of this chapter as it is used as the main distribution package of the whole platform.
+
+Cluster Monitoring Tools
+The most significant and relevant platforms on which this thesis is inspired are Google Dapper, Zipkin and HTrace. All three tools serve the same core purpose, which is to monitor large-scale Java-based distributed applications. Zipkin and HTrace are developed according to Google Dapper design and therefore these three platforms share a few similar concepts. The basic concept shared between the platforms is a concept called Span. Spans are structures used to collect the shared state between the application nodes and usually encapsulate a few calls between the neighboring nodes with well-defined start and end of the communication. They are formed in hierarchical structures called trace trees, in which the user can see how distributed calls related on each other. Spans are explained in more details later in the following sections. 
+
+The following three sections describe the basics of each of the mentioned platforms. Since Zipkin, HTrace and Google Dapper share some basic concepts, only those parts of each platform that are relevant and interesting to the thesis are described.
+Google Dapper
+dapper
+Google DapperDapperPaper is a proprietary software used at Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple host at the same time. Different parts of the monitored system does not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
+itemize
+	Low overhead 	Google Dapper should share the same life-cycle as the monitored application itself to capture also the intermittent events and thus low overhead is one of the main design goals of the tool.
+	Application level transparency 	The developers and users of the application should not need to know about the monitoring tool and are not supposed to change the way how they interact with the system when the monitoring tool is running. It can be assumed from the paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced at the Google use the same libraries and share similar control flow practices.
+	Scalability 	Such a system should perform well on data of significantly large scale.
+itemize	
+Google Dapper collects the information from distributed applications as distributed traces. The origin of the distributed trace is the communication or task initiator and the trace spans across the nodes in the cluster also participating in the computation or communication.
+	
+There were two proposed approaches for obtaining the distributed traces when Google Dapper was developed: black-box and annotation-based monitoring approaches. The black-box approach assumes no additional knowledge about the application whereas the annotation-based approach can make use of additional information via annotations. Google Dapper is mainly using black-box monitoring schema since most of the control flow and RPC (Remote Procedure Call) subsystems are shared among Google, however support for custom annotations is provided via additional libraries build on top of the core system. This gives the developer of an application possibility to attach some additional information to spans, which are very application-specific.
+	
+In Google Dapper, distributed traces are represented as so called trace trees, where tree nodes are basic units of work referred to as spans. Spans are related to other spans via dependency edges. These edges represents relationship between parent span and children of this span. Usually the edges represent a set of related RPC calls or similar kind of communication. Each span can be uniquely identified using its id. In order to reconstruct the whole trace tree, the monitoring tool needs to be able to identify the span where the computation started. Spans without parent id are called root spans and serve exactly this purpose. Spans can also contain information from multiple hosts, usually from direct neighborhood of the span. Structure of a span in Google Dapper platform is described in the Figure fig:dapper_span. The figure shows a single span encapsulating the client-server communication. It can be seen that events from both nodes are recorded within a single span.
+figure
+		dapper_span.png
+	Example of a span in Google Dapper, taken from Google Dapper paperDapperPaper
+	fig:dapper_span
+figure
+
+Google Dapper is able to follow distributed control paths thanks to instrumentation of a few common shared libraries among Google developers. This instrumentation is not visible to the final users of the system and therefore Dapper has high-level of application transparency. Instrumentation in Dapper is achieved by tracing three main instrumentation points. 
+itemize
+	Dapper attaches a so called trace context as thread-local variable to the current thread when the thread handles any kind of traced control path. Trace context is a small data structure containing mainly reference to a current and parent span via their ids.
+	
+	In distributed systems the communication is often done via callbacks. Callback is a method which is usually executed when some execution in different part of the application has finished. Dapper instruments the callback mechanism so when computation is deferred, traced callbacks still carry around the trace context of the creator and therefore also parent and current span ids.
+	
+	Most of the communication in Google is using single RPC framework with language bindings to different languages. This library is instrumented as well to achieve the desired application-level transparency.
+itemize
+
+Sampling of the captured data has also a positive effect on the low-level overhead of the whole application. As mentioned in the paper, the volume of data processed at Google is significant so only samples are taken at a time.
+
+Zipkin
+zipkin
+Zipkin(More information about Zipkin tracing tool is available at http://zipkin.io.) is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of the captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
+information are recorded automatically, for example time when a span was created, whereas some are optional. Zipkin has also support for custom application-specific annotations.
+
+Zipkin architecture can bee seen on Figure fig:zipkin_architecture.
+figure
+		zipkin_architecture.png
+	Zipkin architecture, from Zipkin ArchitectureZipkinImage
+	fig:zipkin_architecture
+figure
+The instrumented application is responsible for creating valid traces. For that reason, Zipkin has set of pre-instrumented libraries ready to be used in order to work well with the whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead. Once a span is created by the application, it is sent to Zipkin collector. In General, Zipkin consists of four components:
+itemize
+	Zipkin Collector 	The collector is usually a daemon thread or process which stores, validates and indexes the data for future lookups.
+	Storage 	Data in Zipkin can be stored in multiple ways which makes this is a pluggable component. For example, data can be stored in Apache Cassandra(Apache Cassandra is a free and open-source distributed NoSQL database. It is designed to handle large amount of data and provide high-availability), MySQL(MySQL is an open-source relational database system.) or can be send to Zipkin user interface right away without any intermediate storage. The last option is good for handling a small amount of data since the user interface is not supposed to handle storing data of big size.
+	Zipkin Query Service 	This component acts as a query daemon allowing the user to query various information about spans using simple JSON (Javascript Object Notation)(JSON is a lightweight data-interchangeable format based on object notation used in Javascript programming language) API.
+	Web user interface 	A basic, but very useful user interface, which allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format. By default, it is available on port 9411.
+itemize
+The Zipkin Web user interface is used as a front-end  for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in the Section sec:zipkin_ui.
+ HTrace
+ htrace
+ HTrace(The project is available at https://github.com/cloudera/htrace.) is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. HTrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
+ 
+ The disadvantage of this tool is the need for instrumenting the monitored application in order to allow the tracing and spans collection.
+Tools for Large-Scale Debugging
+Standard techniques and tools can be used for debugging distributed applications, however the main purpose of these tool is to debug single node applications and therefore when applying them on nodes in the distributed application the information about dependencies between different nodes in the cluster is not available. Many tools for large-scale debugging exist, but this section just points out basic ideas behind two different approaches - discovering scaling bugs and behavior based debugging. 
+
+Discovering Scaling Bugs
+The scalability is one of the most important aspects of distributed systems. It is desirable to know how the platform scales when it process significantly large data and what is the expected scalability trend. It can happen that the platform can run significantly slower on big data than expected after testing on smaller data. This issue is usually called a scaling bug. Tools which can be used to help discovering scaling bugs are for example Vrishna and WuKongHPC. Both of the mention tools are based on the same idea. They build a scaling trend based on data batches of smaller size and the observed scaling trend acts as a boundary. The scaling bug becomes observable when the scaling trend is violated. The first tool, Vrisha, is not able to distinguish which part of the program violated the scaling trend. This is however possible in the second tool, WuKong. In comparison to Vrisha, WuKong does not build one scaling trend of the whole application, but creates more smaller models, each per some control flow structure in desired programming language. All these smaller models represent together the whole scaling trend. When the application observes the scaling bug, WuKong is able to locate the developer in the place in the code where the trend is probably violated.
+
+Behavior-based Analysis
+The second category of tools used for debugging large scale applications are based on behavior analysis. The basic idea behind these tools is creation of classes of equivalence from different runs and processes of the application. Using this approach, the amount of data used for further inspection is reduced down. These tools are especially helpful when discovering anomalies between different observed application runs. For example, STAT - Stack Trace Analysis ToolHPC, is a lightweight and scalable debugging tool used for identifying errors on massive high performance computing platforms. It gathers stack traces from all parallel executions, merges together stack traces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. 
+
+The other tool used as an example in this category is AutomaDedHPC. This tool creates several models from an application run and can compare them using clustering algorithm with (dis)-similarity metric to discover anomalous behavior. It can also point to specific code region which may be causing the anomaly.
+
+Profiling Tools
+Profiling is a form of dynamic code analysis. It may be used for example for determining how long execution of each part of the system takes compared to the time of whole application run or for example to determine which part of the application uses the most memory. Profiling tools can be divided in two categories:
+itemize
+	Sampling Profilers Sampling profilers take statistical samples of an application at well-defined points such as method invocations. The points where the application should take samples have to be inserted at the compilation time by the compiler. For example, these profiles are good to collect information about time how long a method run, caller of the method or for example the complete stack trace. However they are not able to collect any application specific information.
+	Instrumentation Profilers The instrumentation profilers are based on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers and usually give the developer the ability to specify extra points in the code where the application-specific data are recorded. 
+itemize
+ Sampling profilers usually have less overhead compared to instrumentation profilers, but on the other hand, instrumentation profilers allow to monitor application-specific parts of the application.
+ 
+Profilers can be also looked at from different point of view and categorized based on the level on which they operate and are able to record the information.
+itemize
+	System Profilers 	System profilers operate on operating system level. They can show system code paths, but are not able to capture method calls for example in Java application.
+	Application Specific Profilers 	Generally, application specific profilers are able to collect method calls within the application. For example, JVM profilers can show Java stack traces but are not able to show the further call sequence on the operating system level.
+
+itemize
+The ideal solution for monitoring purposes of Java applications would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers used for collecting traces from both operating system and JVM level are usually called mixed-mode profilers. JDK8u60 comes with the solution in a form of extra JVM argument -XX:+PreserveFramePointerMixedModeProfilers. Operating system is usually using this field to point to the most recent call on the stack frame and system profilers make use of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. This leaves this register available for various kind of JVM optimizations. The -XX:+PreserveFramePointer  option ensures that JVM abides the frame pointer register and will not use it as a general purpose register. Therefore, both system and JVM stack frames can appear in single call hierarchy. Using the JVM mixed-mode profilers, it is possible to collect stack traces leading to:
+itemize
+	Page Faults - page faults are useful to show which JVM code triggered main memory to grow.
+	Context Switches - context switches are used to determine code paths that often lead to CPU switches.
+	Disk I/O Requests - capturing Input/Output information allow to see code paths leading for example to blocking seek operation on the hard-drive.
+	TCP Events - these traces show code paths going from high-level Java code to low-level system methods such as connect or accept. They can be used to reason about performance and good design of network communication in much more better detail.
+	CPU Cache Misses - information about cache misses can be used to optimize Java code to make better use of the existing cache hierarchy.
+itemize
+
+All the information above can be described on special graphs called Flame graphs.
+Flame Graphs
+Flame Graphs are special graphs introduced by developer Brendan Gregg. Flame graphs are visualization for sampled stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling or instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. The example flame graph is shown on the Figure fig:flame_chart.
+
+figure
+		flame_chart.png
+	Flame Graph example
+	fig:flame_chart
+figure
+Flame graph is a graph where:
+itemize
+	Each box represents a function call in the stack.
+	The y-axis shows stack frame depth. The top function is the function which was at the moment of capturing this flame chart on the CPU. All functions underneath of it are its ancestors.
+	The x-axis shows the population of traces. It does not represent passage of time. The function calls are usually sorted alphabetically.
+	The width of each box represents the time of how long the function spent on CPU.
+	The colors are not significant, they are just used to visually separate different function calls.
+itemize
+
+Flame charts can be created in a few simple steps, but it depends on the type of profiler the user wants to use. The three steps are:
+enumerate
+	Capture stack traces. For this step the profiler of custom choice may be used.
+	Fold stacks. The stacks need to be prepared so Flame graphs can be created out of them. Scripts for most of the major profilers exist and may be used to prepare the folded stack trace. The scripts are available on the official page for the Flame Graphs.
+	Generate the flame graph itself again using the helper script.
+enumerate
+
+The purpose of this really short section is just to introduce the idea of Flame graphs because it's one of the future plans to add support for flame graphs into the Distrace monitoring tool developed in the scope of this thesis. For more information about the flame charts please visit the Brendan Gregg's blog(The blog is available at http://www.brendangregg.com/flamegraphs.html.).
+Byte Code Manipulation Libraries
+Distrace highly depends on the Java bytecode instrumentation and this section gives an overview of four bytecode manipulation libraries considered to be used at the thesis: Javassist, Byte Buddy, CGLib and ASM. Since it's a core feature of the whole platform and affects both the performance and the usability of the tool, the library was thoroughly reviewed before selected. Byte Buddy library was selected and is therefore described in more detail. However the reasons for its selection can be found in the following Chapter analysis.
+
+ASM
+asm
+ASM(The library is hosted at http://asm.ow2.org.) is a low-level high-performance Java bytecode manipulation framework. It can be used to dynamically create new classes or to redefine already existing classes. It works on the bytecode level so the user of this library is expected to understand the JVM bytecode in detail. ASM also operates on event-driven model as it makes use of Visitor design pattern(The visitor pattern is a way to separate data and the operations, which can be performed on the data.) to walk through complex bytecode structures. ASM defines some default visitors such as FieldVisitor, MethodVisitor or ClassVisitor. The ASM project can be a great fit for project requiring a full control over the bytecode creation or inspection since it's low-level nature.
+Javassist
+javassist
+Javassist(Javassist library is hosted at http://jboss-javassist.github.io/javassist/.) is a well-known bytecode manipulation library built on top of ASM. It allows the Java programs to define new classes at run-time and also to modify class files prior the JVM loads them. It works on higher level of abstraction compared to ASM so the user of this library is not required to work with the low-level bytecode. The advantage of Javassist is that the injected code does not depend on the Javassist library at all. The code to be injected to the existing bytecode is expressed as instances of Java String class. The disadvantage of this approach is that the code to be injected is not subject to code inspection in most of the current IDEs. The strings representing the code are compiled at run-time by special Javassist compiler. This run-time compilation works well for most of the common programming structures but for example auto-boxing and generics are not supported by the compilerJAVASSIST. Also it is important to mention that Javassist does not have support for the code injection itself. Therefore, it can be used for specifying the code which alters the original code but external tool needs to be used to inject the code itself.
+CGLib
+cglib
+CGLib(CGLib library is hosted at https://github.com/cglib/cglib.) as another byte-code manipulation library built on top of ASM. The main concepts are build around Enhancer class, which is used to create proxies by dynamically extending classes at run-time. The proxified class is then used to intercept method calls and field access as is defined by the developer. However CGLib lacks comprehensive documentation making it harder to even understand the basics.
+
+Byte Buddy
+sec:byte_buddy
+Byte Buddy(Byte Buddy library is developed by Rafael Winterhalter and is freely available at https://github.com/raphw/byte-buddy. The page contains also a full API documentation and code examples.) is fairly new, light-weight and high-level bytecode manipulation library. The library depends only on visitor API of the ASM library which does not further have any other dependencies. It does not require from the user to understand format of Java bytecode, but despite this, it gives the users full flexibility to redefine the bytecode according to their specific needs. Despite it's high-level approach, it still offers great performanceByteBuddy_Perf and is used at frameworks such as Mockito(Mockito is a mocking framework with a clean API allowing developers to write readable tests. More information is available at http://mockito.org.) or Hibernate(Hibernate is an open source Java persistence framework project and provides object-relational mapping in the Java programming language. More information is available at http://hibernate.org.). Byte Buddy can be used for both code generation and transformation of existing code.
+
+Code Generation
+Code generation is done by specifying from which class a new class should be sub-classing. In the most generic case, class can be created based on the Object class. The newly created class can introduce new methods or intercept methods from it's super class. In order to intercept existing methods (change their behavior and return value), the method to be intercepted has to be identified using instances of the ElementMatchers class. These matchers allow the developer to identify methods using for example their names, number of arguments, return types or associated annotations. The whole list of matchers and also examples how code can be generated is greatly described in the documentation of the Byte Buddy library.
+
+The power behind Byte Buddy is also that it can be used to redefine classes at run-time. This is achieved by several concepts, mainly via Transformers, Interceptors and Advice API.
+Code Transformation
+back:code_transform
+In order to tell Byte Buddy what method or field to intercept, the place in code which triggers the interception has to be identified. First, a class containing the desired method for instrumentation needs to be located. It can be done by simply specifying the class name or using more complex structures. For example, the element matchers may be used to only consider all classes A extending class B whilst implementing interface C at the same time. 
+
+The next step is to define the Transformer class itself. Transformers are used to identify methods in the class, which should be instrumented, and they also specify the class responsible for the instrumentation itself. This class may be either Interceptor or Advice and their description is given in more detail in the following section. 
+
+The methods to be instrumented can be specified in the transformer using the element matchers. In more detail, AgentBuilder.Transformer interface has a method transform which takes DynamicType.Builder as it's argument. This builder is used to create a single transformer wrapping all the transformers for all classes in the code so the result of this builder can be thought of as a dispatcher of the instrumentation for complete application.
+
+There are two ways how to instrument a class in Byte Buddy. Either via Interceptors or via Advice API.
+Interceptors
+Interceptor is a class defining the new or changed desired behavior for the method to be instrumented.  The demonstration how Byte Buddy uses interceptors is shown on a small example. Let's assume the class Foo is the original unchanged class:
+lstlisting[language=Java]
+class Foo 
+	String bar() 
+	return "bar"; 
+	
+
+lstlisting
+	
+Let's also assume that the Interceptor is of type Qux. The interception of the class Foo using the defined interceptor looks like this in schematic code:
+
+lstlisting[language=Java]
+class Foo 
+	// Requires your interceptor class to be known
+	static Qux 
+
+interceptor.intercept(); 
+	
+	static 
+	// Requires knowing the framework
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
