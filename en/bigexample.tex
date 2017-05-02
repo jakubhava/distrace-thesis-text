@@ -29,7 +29,7 @@ When the user tells H\textsubscript{2}O to create a deep learning model based in
 
 In more detail, the class \texttt{MRTask} extends from \texttt{DTask}. This class is a general class used in H\textsubscript{2}O to represent task remotely executed. Further, \texttt{DTask} class extends from the \texttt{H2OCountedCompleter} class. The last class is a simple wrapper around the Fork/Join (F/J) execution framework\footnote{For more information, please read Java documentation for Fork/Join framework available at \url{https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html}.} allowing the platform to prioritize tasks. The Fork/Join framework is an implementation of Java \texttt{ExecutorService}, which helps with job parallelization on multiple processors. The Fork/Join framework executes tasks in separated threads and can move tasks between threads to ensure the highest possible performance. Each H\textsubscript{2}O \texttt{MRTask} is executed as \texttt{ForkJoinTask} inside this execution framework. A \texttt{ForkJoinTask} is a task wrapper, which can run inside a single thread. It is a light-weight wrapper and large number of tasks may be served by smaller number of actual threads.
 
-The way how H\textsubscript{2}O perform computation from high-level point of view can be seen on the Figure \ref{fig:h2o_overview}. The task initiator receives the \texttt{MRTask} from the parent \texttt{Job} or from the user. It splits the task into two new sub-tasks and send these tasks to up to two different nodes in the cluster. These nodes again split the task from the input and send the task to another selected nodes in the cluster. Each splitting decreases the number of nodes on which the task has to be sent. Once this number os one, the node is marked as a leaf node and does not perform any other splitting and re-sending.
+The way how H\textsubscript{2}O perform computation from high-level point of view can be seen on Figure \ref{fig:h2o_overview}. The task initiator receives the \texttt{MRTask} from the parent \texttt{Job} or from the user. It splits the task into two new sub-tasks and send these tasks to up to two different nodes in the cluster. These nodes again split the task from the input and send the task to another selected nodes in the cluster. Each splitting decreases the number of nodes on which the task has to be sent. Once this number os one, the node is marked as a leaf node and does not perform any other splitting and re-sending.
 
 \begin{figure}
 	\centering
@@ -101,13 +101,13 @@ In order to capture the relationships between tasks and their computations, we n
 	\item \texttt{reduce2} - \texttt{reduce2}. This pair represents the single reduce operation. This span is entered when the \texttt{reduce2} method is entered and closed when the \texttt{reduce2} method is leaved. Therefore, this span lasts only for the duration of the \texttt{reduce 2} method call.
 \end{enumerate}
 
-For all of the pairs above, the Advice API is used for the instrumentation because it's sufficient on our case to be able to capture just method enter and exit events. In case we would like to perform more complex instrumentation, we could use Interceptors API, which is described in the Byte Buddy documentation and briefly also in the Section \ref{sec:byte_buddy}.
+For all of the pairs above, the Advice API is used for the instrumentation because it's sufficient on our case to be able to capture just method enter and exit events. In case we would like to perform more complex instrumentation, we could use Interceptors API, which is described in the Byte Buddy documentation and briefly also in Section \ref{sec:byte_buddy}.
 
 Instrumenting these methods is a technical task and the code can be seen in the corresponding example available in the Attachment 1. The trace context information is always attached to the task transferred between the nodes. The trace context is initially created during the \texttt{dfork} method call, since it's the main entry point of the computation. When instrumenting \texttt{compute2} and \texttt{setupLocal0} methods, the deep copy of the trace context is attached to the transferred task, because the \texttt{onComplete} method is usually called from different thread and this ensures there are no collisions caused by accessing the same trace context from multiple threads.
 
 Also, when instrumenting a few of the mentioned methods, we need to ensure that correct pairs of spans are created and closed. For this purpose we use flags available on the \texttt{Span} class. Flags allow us to attach additional information to the trace context, which may be used when closing the span. This is for example useful in cases when a method is used to close several spans at the same time and we need to properly distinguish between the spans to close the correct one.
 
-Once all the advice or interceptors are created, we need to create corresponding transformers which define the association between the method in the monitored application and the method used for the instrumentation. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer defining instrumentation of \texttt{call} and \texttt{response} method looks like:
+Once all the advice or interceptors are created for each of the mentioned methods above, we need to create the transformers. The transformer defines on which method from the applications's code which advice or interceptor is applied. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer for \texttt{RPC.class} defining instrumentation of the \texttt{call} and the \texttt{response} method looks like:
 
 \begin{lstlisting}[language=Java]
 new BaseTransformer() {
@@ -122,9 +122,9 @@ public DynamicType.Builder<?> 	defineTransformation(
 }
 });
 \end{lstlisting}
+The \texttt{RPCAdvices.call} static class and \texttt{RPCAdvices.response} class are the advice, which defines the instrumentation.
 
-
-Once all transformers are defined, we need to associate the transformers with the classes from the application on which they should operate and also create a main entry point of the extended instrumentation server we just created. This is demonstrated on the following code snippet:
+Once the transformers for each instrumented class are created, we need to associate the transformers with the classes from the application on which they should operate. We also need to create a main entry point of the extended instrumentation server. This is demonstrated on the following code snippet:
 
 \begin{lstlisting}[language=Java]
  public static void main(String args[]) {
@@ -142,11 +142,11 @@ Once all transformers are defined, we need to associate the transformers with th
 	  });
 }			 
 \end{lstlisting}
-It can be seen in this code that we are starting the instrumentation server using the API provided by the core instrumentation server with the \texttt{MainAgentBuilder} instance. This instance is later used as a dispatcher of instrumentation of the whole application.
+In this code we associate a class to each transformer and also, we are starting the instrumentation server using the API provided by the core instrumentation server with the \texttt{MainAgentBuilder} instance. This instance is later used as a dispatcher of instrumentation of the whole application.
 
-Later when starting the application with the attached native agent and configuring the agent, we need to explicitly specify the class, which is used as the main entry point. This is exactly the class containing the \texttt{main} method with the content above.
+Later, when starting the application with the native agent attached and configuring the agent, we need to explicitly specify the class, which is used as the main entry point. This is exactly the class containing the \texttt{main} method with the content above.
 
-Now we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H\textsubscript{2}O application sources. The first dependency is obvious as we are using the API defined in the library. The second library is required since we used several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify the class to be instrumented for example by its name as \texttt{named("fully.qualified.class.name)} instead of \texttt{is(Example.class)}. The second option however gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located in the instrumentor and when they are requested to be instrumented, their original bytecode don't have to be sent from the native agent. 
+Now we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H\textsubscript{2}O application sources. The first dependency is obvious as we are using the API defined in the library. The second library is required since we are using several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify the class to be instrumented for example by its name as \texttt{named("fully.qualified.class.name)} instead of \texttt{is(Example.class)}. The second option, however, gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located in the instrumentor and when they are requested to be instrumented, their original bytecode don't have to be sent from the native agent. 
 
 After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
@@ -168,7 +168,7 @@ In order to start the cluster of size three, we need to call this command three 
 \section{The Results}
 Once all three nodes have been started, the computation starts and the results based on our instrumentation are shown directly in the Zipkin user interface. By default, the user interface is available at port 9411.
 
-We need to click on the \textit{Find Traces} button to show all traces, which satisfy our search conditions. We should see in the output a single trace and once we click on it, we should see similar result to the one on the Figure \ref{h2o_zipkin_output}. This figure shows just portion of the whole trace, but contains the important observed information.
+We need to click on the \textit{Find Traces} button to show all traces, which satisfy our search conditions. We should see in the output a single trace and once we click on it, we should see similar result to the one on Figure \ref{h2o_zipkin_output}. This figure shows just portion of the whole trace, but contains the important observed information.
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.4]{h2o_zipkin_output.png}

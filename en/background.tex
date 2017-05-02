@@ -23,7 +23,7 @@ Google Dapper collects the information from distributed applications as distribu
 	
 There were two proposed approaches for obtaining the distributed traces when Google Dapper was developed: black-box and annotation-based monitoring approaches. The black-box approach assumes no additional knowledge about the application whereas the annotation-based approach can make use of additional information via annotations. Google Dapper is mainly using black-box monitoring scheme since most of the control flow and RPC (Remote Procedure Call) subsystems are shared among Google, however, support for custom annotations is provided via additional libraries build on top of the core system. This gives the developer of an application possibility to attach some additional information to spans, which are very application-specific.
 	
-In Google Dapper, distributed traces are represented as so-called trace trees, where tree nodes are basic units of work referred to as spans. Spans are related to other spans via dependency edges. These edges represent the relationship between parent span and children of this span. Usually, the edges represent a set of related RPC calls or similar kind of communication. Each span can be uniquely identified using its id. In order to reconstruct the whole trace tree, the monitoring tool needs to be able to identify the span where the computation started. Spans without parent id are called root spans and serve exactly this purpose. Spans can also contain information from multiple hosts, usually from direct neighbors of the span. The structure of a span in Google Dapper platform is described in the Figure \ref{fig:dapper_span}. The figure shows a single span encapsulating the client-server communication. It can be seen that events from both nodes are recorded within a single span.
+In Google Dapper, distributed traces are represented as so-called trace trees, where tree nodes are basic units of work referred to as spans. Spans are related to other spans via dependency edges. These edges represent the relationship between parent span and children of this span. Usually, the edges represent a set of related RPC calls or similar kind of communication. Each span can be uniquely identified using its id. In order to reconstruct the whole trace tree, the monitoring tool needs to be able to identify the span where the computation started. Spans without parent id are called root spans and serve exactly this purpose. Spans can also contain information from multiple hosts, usually from direct neighbors of the span. The structure of a span in Google Dapper platform is described in Figure \ref{fig:dapper_span}. The figure shows a single span encapsulating the client-server communication. It can be seen that events from both nodes are recorded within a single span.
 \begin{figure}
 	\centering
 		\includegraphics[scale=0.7]{dapper_span.png}
@@ -47,7 +47,7 @@ The sampling of the captured data has also a positive effect on the low-level ov
 Zipkin\footnote{More information about Zipkin tracing tool is available at \url{http://zipkin.io}.} is an open-source distributed tracing system. It is based on Google Dapper technical paper and manages both the collection and lookup of the captured data. Zipkin uses instrumentation and annotations for capturing the data. Some
 information is recorded automatically, for example, time when a span was created, whereas some are optional. Zipkin has also support for custom application-specific annotations.
 
-Zipkin architecture can bee seen in the Figure \ref{fig:zipkin_architecture}.
+Zipkin architecture can bee seen in Figure \ref{fig:zipkin_architecture}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{zipkin_architecture.png}
@@ -65,7 +65,7 @@ The instrumented application is responsible for creating valid traces. For that 
 	\item \textbf{Web user interface} \newline
 	A basic, but very useful user interface, which allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format. By default, it is available on port 9411.
 \end{itemize}
-The Zipkin Web user interface is used as a front-end for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in the Section \ref{sec:zipkin_ui}.
+The Zipkin Web user interface is used as a front-end for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in Distrace tool is described in more details in Section \ref{sec:zipkin_ui}.
  \section{HTrace}
  \label{htrace}
  HTrace\footnote{The project is available at \url{https://github.com/cloudera/htrace}.} is a tracing framework created by Cloudera used for monitoring distributed systems written in Java. It is based on Google Dapper as well and shares the same concepts such as spans and trace trees. In order to allow tracing of the application, the users need to manually attach a span identifiers to desired RPC calls (Remote Procedure Calls). These identifiers are then used to create relationships between spans collected on different nodes. HTrace stores the span and trace information in thread-local storage and the user is responsible for making sure this state is transferred to a new thread or node. HTrace has also support for custom spans annotations and thus allows the user to collect application specific information as part of the spans. 
@@ -111,7 +111,7 @@ The ideal solution for monitoring purposes of Java applications would be to have
 
 All the information above can be described on special graphs called Flame graphs.
 \subsubsection{Flame Graphs}
-Flame Graphs are special graphs introduced by developer Brendan Gregg. Flame graphs are visualization for sampled stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling or instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. The example flame graph is shown in the Figure \ref{fig:flame_chart}.
+Flame Graphs are special graphs introduced by developer Brendan Gregg. Flame graphs are visualization for sampled stack traces, which allows the hot paths in the code to be identified quickly. The output of sampling or instrumentation profiler can be significantly big and therefore visualizing can help to reason about performance in more comfortable way. The example flame graph is shown in Figure \ref{fig:flame_chart}.
 
 \begin{figure}
 	\centering

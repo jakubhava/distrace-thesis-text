@@ -1,0 +1,425 @@
+Design
+chap:design
+This chapter describes design of the whole platform in details, however implementation specifics of some parts of the Distrace tool are described in the following Chapter chap:implementation. The current chapter starts with the high-level overview of the complete platform and interactions between its parts. It is followed by a simple use-case to give the reader an idea how the Distrace tool is can be used.
+
+Spans and their format are described next, followed by design of the native agent and instrumentation server. This chapter ends by description of the default Zipkin user interface and also JSON format, in which the user interface accepts the data from the instrumentation server. 
+
+Overview
+design:overview
+Main purpose of the Distrace tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building the whole trace trees. Trace trees consists of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be send to the user interface using various data collectors. Span exporters are used to export spans in desired format on disk or the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and present them to the user in a form of trace trees.
+
+Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created extended instrumentation server is then used for instrumenting the classes of the original application, however spans are still located in the scope of the application itself. In order to obtain the class files for transformation, the native agent runs as part of the monitored application and sends the desired classes to the instrumentation server. The native agent is a core part of the whole platform. It is attached to the monitored application and additionally to providing the data to the instrumentation server, it is used to obtain various low-level information from the application. 
+
+The Distrace tool therefore consists of three main components:
+itemize
+	Native Agent
+	itemize
+	Is used to obtain byte-code for the instrumentation.
+	Is used to actually apply the instrumented byte-code.
+	itemize
+	Instrumentation Server
+	itemize
+	Instruments the classes obtained from the native agent.
+	Is also base library for custom application instrumentation server.
+	Can contain implementation of customized span exporters.
+	itemize
+	User Interface
+itemize
+
+
+The Figure fig:architecture denotes the basic relationships between the major parts. Instrumentation server communicates with the native again, mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be send either via data collection agent or via one of the default span exporters explained later in this chapter. Each part is described in more detail later in this chapter. figure
+		architecture.png
+	Basic relationship between the major components. 
+	fig:architecture
+figure
+
+The Figure fig:full_overview shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other and represents tracing of a single computation, which consist of several spans. Spans denote more local computation and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be attached to the node communication. That is also a reason why in this case the methods send(), receive() and process() need to be instrumented. These methods also open and close spans at the correct places in the code.
+figure
+		full_overview.png
+	Trace and span demonstration. 
+	fig:full_overview
+figure
+Example Use Case
+design:use_case
+In order to demonstrate an use case for which this architecture may a good fit, a small example on a simple distributed application is shown in this section. The example consists of three modules. The client module used for submitting tasks, the execution module and the module used for exporting the data. These modules can be represented as separated threads in a single application or as different nodes of the distributed application. In this example, the user always passes a task to the client module. This module performs some pre-processing and sends the task to the execution module. This module performs the computation and once it's done, sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen on the Figure fig:example_arch.
+
+The goal of this example is to record and visualize how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not collect this information already, otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
+
+	figure
+		example_arch.png
+	Example architecture.
+	fig:example_arch
+	figure
+
+
+
+itemize
+The client:
+lstlisting[language=Java]
+public acceptTask(Task task)
+  preprocessTask(task)
+  ...
+  sendTaskForComputation(task)
+  ...
+  waitForExporterToFinish()
+  ...
+
+lstlisting
+
+The executor:
+lstlisting[language=Java]
+public execute(Task task)
+  TaskResult result = executeTask(task)
+  ...
+  sendResultForVisuzalization(result)
+
+lstlisting
+
+The exporter:
+lstlisting[language=Java]
+public export(TaskResult result)
+  saveToDatabase(result)
+  ...
+  notifyClient()
+
+lstlisting
+itemize
+
+In order to collect this type of information and be able to reason about the relationship between the modules, these methods needs to be instrumented. The instrumented code should look as in the schematic code below. Generally, the logic which keeps the track of the current trace and span needs to be injected into the code. To achieve this, developers are supposed to extend the core instrumentation server, which acts as the base library and provides them with several helper methods used to specify the instrumentation points for their applications. 
+
+itemize
+The instrumented client:
+lstlisting[language=Java]
+public acceptTask(Task task)
+  TraceContext tc = TraceContext.create()
+  tc.attachOnObject(task)
+  Span s = tc.openSpan("Main Client Span")	
+  s.addAnnotation("tskReceived", timestamp)
+  ...
+  preprocessTask(task)
+  s.addAnnotation("tskPreprocessed", timestamp)
+  ...
+  sendTaskForComputation(task)
+  ...
+  Result res = waitForExporterToFinish() // blocking method
+  ...
+  tc.closeCurrentSpan()
+
+lstlisting
+The create method creates a new trace and the attachOnObject method attaches the trace context on the task object, which is passed around the network. The method openSpan opens a new span encapsulating the client computation. The addAnnotation method is used to add application specific information to the current span. The closeCurrentSpan method is used to close the current span and export the content using the provided span exporter. In the default case, the data are sent to the user interface directly.
+
+
+The instrumented executor:
+lstlisting[language=Java]
+public execute(Task task)
+  TraceContext tc = TraceContext.getFromObject(task)
+  tc.openSpan("Executor span")
+  TaskResult result = executeTask(task)
+  tc.attachOnObject(result)
+  ...
+  sendResultForExport(result) // non-blocking method
+  tc.closeCurrentSpan()
+
+lstlisting
+In this case, we don't create a new trace context, but obtain the existing one from the task object on the input. A new nested span is opened within the scope of the span, created in the previous module. The current span marks the span from the previous module as its parent.
+
+The instrumented exporter:
+lstlisting[language=Java]
+public export(TaskResult result)
+  TraceContext tc = TraceContext.getFromObject(result)
+  tc.openSpan("Exporter span")
+  saveToDatabase(result)
+  ...
+  tc.closeCurrentSpan()
+  notifyClient()	
+
+lstlisting
+In this case, the meaning of the methods is the same as above.
+
+itemize
+
+The developer should extend the base instrumentation server to instrument the classes in order to have a similar format as above. The extended instrumentation server is described on the Figure fig:example_extended.
+
+	figure
+		example_extended.png
+	Structure of the extended instrumentation server JAR artifact.
+	fig:example_extended
+	figure
+
+The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin user interface. The default IP address and port of the user interface is used when it's not explicitly configured as the native agent argument.
+
+A single collected trace from this application should look as shown on the Figure fig:example_trace.
+
+	figure
+		example_trace.png
+	Example trace in case of the example application.
+	fig:example_trace
+	figure
+
+Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of technical work is done automatically. The end user is only responsible for starting the application with the agent attached.
+
+Spans and Trace Trees
+subsec:spans
+As mentioned briefly in the previous section, spans are used to gather the information about the distributed calls or so called, distributed stack traces. Points in the code where spans are created and closed are defined as part of the instrumentation server but since it's the most important concept in the thesis, we explain them in the separated section. 
+
+Spans are the main concept behind capturing the distributed traces. They are entities injected to the code of the instrumented application to keep track of the communication and state between the nodes of the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
+
+Span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. A root span is the first span created inside the trace and does not have parent id attribute set up. Therefore, the user interface back-end can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node.  
+
+Span has also several additional optional fields, which are later used in the user interface. The fields are:
+itemize
+	Timestamp - when the span started.
+	Duration - how long the span lasted.
+	Annotations - annotations used to carry additional timing information about spans. For example, time when the span has been received on the receiver side or the time the span has been processed at the receiver side can be set using these annotations.
+	Binary annotations - annotations used to carry around application specific details. They can also be used to transfer information between communication nodes inside of a single span. For example, a sender can store number of bytes sent during the request and a receiver can use this information to calculate overall number of bytes received from this particular node.
+itemize
+Each span has also an internal field called flags. The developer may store tags important to the instrumentation and these flags are transferred as part of the spans. Flags are not sent to the user interface and are only used for instrumentation purposes. For example, they can be used in case of multiple spans exist at a single moment. In this case, these spans can be annotated with special flags and the decision can be made based on this to process these spans.
+
+Each annotation, both binary and regular, has also an endpoint information attached. This element consist of:
+itemize
+	IP - IP of the node on which this event was recorded.
+	port - port of the service which recorded the span.
+	service name - a special name, which is used in the user interface to group and filter different traces by names.
+itemize
+
+Span IDs
+It is also important to mention that span id is created randomly. This is done in order to allow parallel spans to coexist in the same control flow without overlapping as can be seen on the Figure fig:parallel_spans.
+
+	figure
+		parallel_spans.png
+	Generating span ids randomly ensures that they don't overlap when they are created in parallel.
+	fig:parallel_spans
+	figure
+If the ids were not random at different nodes of the distributed system, the parallel spans would be creating child spans with ids in the same linear sequence and therefore these spans would be overlapping, as can be seen on the Figure fig:parallel_spans_overlapping
+	figure
+		parallel_spans_overlapping.png
+	Generating span with the same linear sequence leads to span overlapping.
+	fig:parallel_spans_overlapping
+	figure
+	
+The following sections contain information about how spans are exported for processing outside of the Distrace tool and also how spans are created using TraceContext and TraceContextManager.
+Span Exporters  Data Collectors
+design:exporter
+Spans can be exported from the application using so called span exporters. The type of the exporter can be configured via one of the native agent configuration properties. It is important to mention that the exporter is configured globally and each span in the application is using the same exporter(Exporter is a static attributed of the Span entity.). The monitored application needs to have the chosen span exporter available at run-time, since the export is performed at the scope of the monitored application. Therefore, exporters are sent to the native agent during the initialization phase and the agent puts the exporters on the application classpath.
+
+The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in the distributed application. The Distrace tool does not implement data collection service as many services exist for this purpose. 
+
+Data collected within spans are internally represented in JSON format understandable to the Zipkin user interface. This is also the reason why Distrace contains support for working with JSON data and it is explained in more detail later in the Section json_gen. This output format can be customized by the custom span exporter.
+
+The implementation details are available at the Section imp:exporter.
+Trace Context
+Trace context is used for storing the information about the current span and also for creating new spans and closing current spans. Trace context can be attached to a specific object and thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Trace context manager is used for attaching trace context to threads and vice-versa. It provides several operations allowing to the developer to attach trace context to a specific thread and also to get trace context from a specific thread.
+
+Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one(More UUID versions exist and are created based on different information). This UUID type combines 48-bit MAC address of the current device with the actual timestamp. This way it is ensured that two traces created at the same time on different nodes can not have the same identifier. The identifiers are generated in the native agent using C++ library called Sole(The Sole library is available at https://github.com/r-lyeh/sole and can be used to create identifiers in C++ language.) and are made available to the Java code via published native operation getTypeOneUUID.
+
+The trace contact has openNestedSpan and closeCurrentSpan operations. The first operation is used to create a new nested span and set the newly created span as the current one. Nested span is opened within the scope of its parent span and remembers the parent span. A root span is created in case no current span exists. The second operation is used to close the current span.
+
+The second operation closes the the current span. This consist of two actions. The current span is exported using the configured span exporter and the parent span becomes the current span. The Figure fig:closing_spans shows how spans are created, closed and exported. figure
+		closing_spans.png
+	Creating and closing spans.
+	fig:closing_spans
+figure
+
+Transferring Span Information
+In order to capture the shared state between the nodes in the distributed application or between the threads on the same application node, the span details and trace context have to be transferred between the threads or the nodes. Distrace prepares several operations for attaching trace context to either a current thread or to an object acting as the carrier of the trace information.
+
+Usually when transferring the trace context between the threads on the same node, the copies of the trace context should be used. This is not an issue when transferring the trace context between the different nodes of the distributed application.
+
+
+The developer responsible for extending the instrumentation server can use operations like:
+itemize
+	getTraceFromThread
+	getTraceFromObject
+	attachTraceToThread
+	attachTraceToObject
+itemize
+More information about the trace context API is available at imp:trace_context_api.
+
+There are also different variants of how spans can be closed. A span can be closed by the same node or thread who created it. In this case, attaching the trace context information to the current thread is usually sufficient. However, it is also possible that the span can be closed by different thread or node that originally created this span. In this case, the copy of the trace context should usually be created and attached to the object, which is used as the carrier of the trace context.
+Native Agent
+native_agent_design
+The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main task of the agent is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the server and wait for the instrumented code.
+
+The native agent consist of several modules. The most important ones are:
+itemize
+	Bytecode parsing module. The classes in this module are used to parse the JVM bytecode in order to discover the classes dependencies for further instrumentation. Byte code parsing is a technical task described in the Section imp:parsing.
+	InstrumentorAPI. The InstrumentorAPI class provides several methods, which are used to communicate with the instrumentation server JVM. All the queries to the server go through the instance of this class.
+	AgentCallbacks. All callbacks used in the native agent are defined in this namespace.
+	AgentArgs.  The AgentArgs class contains all the logic required for argument parsing.
+	NativeMethodsHelper. The NativeMethodsHelper class is used for registering native methods defined in C++. These methods can be used from the Java code without worrying about the low-level implementation.
+	Utilities module. This module contains several utility namespaces. The most important are AgentUtils and JavaUtils namespaces. The first contains methods for managing the JVMTI connection and for registering the JVMTI callbacks and events. The second is used to simplify work with Java objects in the native code via JNI.
+itemize
+
+Agent Initialization
+desing:native_initialization
+The agent is initialized through the same phases as described in the Section subsec:jvmti_init. The following JVMTI events are especially important to the thesis: VM Init, VM Start, VM Death, Class File load Hook, Class Prepare and Class Load. Callbacks are registered for all the mentioned events so the native agent can react to them accordingly in the code.
+
+As part of the initialization process, the agent is responsible for either connecting to or starting a new instrumentation server. In case the native agent was started in the shared mode of the instrumentation server, the agent tries to connect to already existing server and the server is shared between all  nodes of the distributed application. In the local instrumentation mode, the server is started as a separated process automatically and the connection is established with the server using the inter process communication. In this case, each application node has dedicated instrumentation server.
+
+The callback registered for the VM Init event is responsible for loading all additional classes from the instrumentation server as part of the initialization as well. The additional classes are for example Span, TraceContext or custom implementations of SpanExporter abstract class. These classes need to be available at run-time at the monitored application. They are required since the instrumented code is using trace context and spans for preserving the information about the current trace and the exporters for exporting the spans from the application. Therefore, these classes have to be available at the monitored application. The native agent is designed in a way that developers are not supposed to change the code of if. All the extension are supposed to be done as part of the extended instrumentation server. Therefore, the server is asked at the initialization phase for the list of all additional classes and they are sent to the native agent. The agent puts all the received classes on the application's classpath so they are available to the instrumented code.
+
+Instrumentation
+Code for handling the instrumentation is part of the callback for the Class File load Hook event. The callback has the bytecode for the class being loaded as its input parameter and allows the developer to pass a new instrumented bytecode as the output parameter. The process of instrumentation is described at this section, however some technical details are described in the Chapter chap:implementation.
+
+The process consist of several stages:
+enumerate
+	Enter Class File load Hook callback.
+	Enter the critical section. It can happen that the class file load hook is triggered multiple times and to prevent confusing the instrumentation server, the lock has to be acquired before the instrumentation of a class starts.
+	Firstly, we check whether the virtual machine with the application is 
+ started. If the JVM is initialized, the instrumentation continues, otherwise the instrumentation for currently a class currently being loaded is skipped. In this case, the instrumentation server is not contacted since the classes being loaded are at this point system classed and it is not desired to instrument Java system classes.
+	Attach JNI environment to the current thread. Since the JVMTI and JNI does not have automatic thread management, it is up to the developer to take care of correct threading management.
+	Discover the class loader which is loading the class.
+	Parse name of the class currently being loaded and the nape of the class loader loading the current class. Even though the callback provides input parameter, which should contain the name of the class, at some circumstances it can be set to NULL even though the class name is available in the bytecode. Instead of relying on this parameter, the bytecode is parsed and the class name is found manually.
+	Decide whether the instrumentation should continue. This check is based on the used class loader and name of the class being loaded. Classes loaded by the Bootstrap class loader and in case of Oracle JVM, classes loaded by sun.reflect.DelegatingClassloader are not supposed to be instrumented. 
+	The Bootstrap class loader is used to load system classes and the second mentioned class loader is used to load synthetic classes. and in both cases, it's not desired to instrument classes loaded by these class loaders.
+	There are also some ignored classes for which the instrumentation is not desired. For example, classes loaded during initialization phase from the instrumentation server and the auxiliary classes generated by the Byte Buddy framework should not be instrumented. Auxiliary classes are small helper classes Byte Buddy is using for example to access the super class of the currently being instrumented class. Therefore, the instrumentation continues only if the class is not ignored and not loaded by any of the ignored class loaders.
+	
+	The instrumentation server is asked whether the class is marked for instrumentation. The agent does not know which classes are to be instrumented and therefore, it needs to query the server. The classes to be instrumented are marked by developer when extending the instrumentation server library using simple Byte Buddy API. The process ends if the class should not be instrumented.
+	
+	Check whether the instrumentation server already contains the class being loaded. If the server contains the class, we go to the next step and wait for the instrumented class. If the server does not contain the class, the native agent sends the class data to the instrumentation server, parse the class file for all the dependent classes and send all dependent classes for the instrumentation. This step is repeated through all dependencies recurrently until the loaded class does not have any other dependencies or until all dependencies are already available on the server. All dependencies for the currently instrumented class have to be available on the server in order to perform the instrumentation.
+
+	At this stage, the class is already on the instrumentation server and all dependencies for this class as well. The native agent waits for the instrumented bytecode to be sent from the server and sets the modified bytecode as the output argument of the Class File load Hook callback.
+	
+	Exit the critical section.
+	Exit Class File load Hook callback.
+enumerate
+The Figure fig:inst_state is the state machine diagram representing the instrumentation steps, where the numbers in selected steps correspond to the items in the list above.
+	figure
+		inst_state.png
+	State machine diagram representing the instrumentation process.
+	fig:inst_state
+	figure
+	
+Several technical difficulties had to be dealt with during the development. For example, cyclic dependencies between classes need to be properly handled during the instrumentation. We need to also ensure that the dependencies for instrumented classed are also instrumented in the correct order. The final solution to these problems is described in the Section imp:native:inst
+
+The behavior of the agent may be configured using the arguments passed to the agent. Please see the Attachment 4 for the full list of native agent arguments.
+
+Instrumentation Server
+sec:inst_server
+The instrumentation server is responsible for instrumenting the bytecode received from the native agent in separated JVM and it also acts as the base library for instrumenting specific applications. The developer extending the instrumentation server can use prepared operations to define custom instrumentation points without touching the internals of the native agent.
+
+This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class currently being loaded is required to be instrumented. If yes, the server receives the bytecode, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular it does not take track about the distributed traces. The information about traces is contained in the instrumented classes within the monitored application.
+
+The platform was designed to be configurable and deployment of the instrumentation server is supported via two approaches. The instrumentation server can be located either on the network to all nodes of the distributed application and can be shared by all nodes. This has the advantage of caching the instrumented classes. When any class is instrumented for the first time based on request from any node, it is saved and the instrumentation is not performed for other nodes. Instead, the class can be sent immediately. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same physical node. In this case, the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted on the Figure fig:shared_server.
+ 
+ figure
+ 	 	shared_server.png
+ 	Architecture with the shared instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfer from the agent to the user interface.
+ 	fig:shared_server
+ figure
+ 
+ The other deployment method is that the instrumentation server runs on each node of the distributed application. This has the advantage of faster communication since in this case, inter-process communication is used to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted on the Figure fig:separated_server.
+ 
+ figure
+ 	 	separated_server.png
+ 	Architecture with separated instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfer from the agent to the user interface.
+ 	fig:separated_server
+ figure
+
+Except from the cached classes, the server does not contain any application state and it just reacts to the agent requests. It can accept four type of requests:
+itemize
+	Request for code instrumentation.
+	Request to store bytecode for a class on the server.
+	Request to send all helper classes needed by the agent such as the Span class or TraceContext class.
+	Request to check whether the server contains specific class or not.
+itemize
+The server interacts in more ways with the agent, however all communication is initiated by one of these four request types.	
+
+The instrumentation server needs to deal with several technical problems. The main issue is that the classes, which are about to be instrumented, require all other dependent classes to be available. The other issue is instrumenting the classes with circular dependencies. The server also performs several optimizations to provide faster response to the agent such as caching the instrumented classes and minimizing the communication when possible. The technical aspects of these issues and the optimizations mentioned above are described in the Chapter chap:implementation.
+Instrumentation
+The instrumentation of the class is triggered by the agent and it's done in two stages. The first stage informs the agent whether the class is already available on the instrumentation server or not. The second stage is the instrumentation step itself. The first stage is initiated by the agent and the server performs the check for class availability in three phases:
+enumerate
+	Check if the instrumented bytecode for this class is available.
+	If not, check if the original bytecode for this class is available.
+	If not, check if the class can be loaded using the server's context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the classes on the server classpath for optimization reasons.
+enumerate
+
+The server informs the agent if it does not have the bytecode for the class available. In that case, the agent sends the class to the server and the server registers the received bytecode under the class name. Therefore, the agent does not have to send the class next time since it's already cached on the instrumentation server.
+The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the transformed class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
+
+More information about instrumentation process on the server is described in more details in the Section impl:server:instr.
+Custom Service Loader
+Service loaders are used for loading the extensions to the Distrace tool and creating the extended instrumentation server. The service loader is used for two object types: 
+itemize
+	Custom span exporters - Each span exporter inherits from the abstract SpanExporter class.
+	Custom Interceptors - Each interceptor has to implement the interface Interceptor.
+itemize 
+The user can create custom span exporters and interceptors by either inheriting the desired class or implementing the required interface. In order to allow the platform to locate the custom implementations, the name of the class has to be written inside the text file in the META-INF directory in the extended instrumentation server JAR file. The text file has to have the same name as the abstract class or the interface the particular implementation is for. For example, when the user creates a new interceptor called x.y.InterceptorA, the file Interceptor in the META-INF folder has to contain line x.y.InterceptorA.
+
+Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it is only required to obtain Class object representing the available implementation. Therefore a custom service loader was created. This service loader works in very similar way as the standard Java implementation, but instead of returning the instances of loaded services, it just returns classes representing the available services. 
+
+User Interface
+sec:zipkin_ui
+The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into single one and presents all annotations under the given span. This allows the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface, instead of sending the data back and forth to send them as one single complete span.
+
+The Distrace tool is using Zipkin as default user interface. The default format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporters. This section gives an overview of Zipkin user interface and describes the Zipkin data model. The example output of a single trace in the Zipkin user interface can be seen on the Figure fig:zipkin_ui.
+
+figure
+		zipkin_ui_example.png
+	Example of trace output in the Zipkin user interface.
+	fig:zipkin_ui
+figure
+
+Each span in the user interface is clickable and all the additional information can bee seen at that level. The Distrace tool also automatically collects the stack trace at the time of span creation and closing. Example of such information screen can be seen on the Figure fig:zipkin_ui_detail.
+figure
+		zipkin_ui_detail.png
+	Example of the detail span information.
+	fig:zipkin_ui_detail
+figure
+Zipkin Data Model
+Zipkin requires data to be sent in JSON format. Requests to the user interface are sent as JSON arrays, where the array elements are the spans. Zipkin understands the following attributes of span object:
+itemize
+	traceId - unique id representing the complete trace. It can be either 128 or 64 bit long.
+	name - human readable span name.
+	id - id of this span. At the current implementation, Zipkin user interface supports span ids only to be 64-bit long.
+	parentId - parent id of the current span.
+	timestamp - the time of the span creation.
+	duration - the duration of the span. It is the duration between the span creation and closing.
+	annotations - array containing standard Zipkin annotations. These annotations can be handled by the user interface in a specific way, since the user interface understands the meaning of content of these annotations. Following annotations are available:
+	itemize
+	cr : timestamp of client receiving the span.
+	cs : timestamp of client sending the span.
+	sr : timestamp of server receiving the span.
+	ss : timestamp of server sending the span.
+	ca : client address.
+	sa : server address.
+	itemize
+	binaryAnnotations - array of custom annotations. For example, collected stack traces are sent as a binary annotation.
+itemize
+
+Except the annotations and binaryAnnotations attributes, the attributes are of simple string or number type. Annotations are objects consisting of three additional attributes - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans. Full example of data sent to Zipkin user interface can be:
+lstlisting[emph=traceId, name, id, timestamp, duration, annotations, value, endpoint, serviceName, ipv4, port, binnaryAnnotations, key,emphstyle=]
+[
+ 
+    "traceId": "123456789abcdef",
+    "name": "query",
+    "id": "abcd1",
+    "timestamp": 1458702548467000,
+    "duration": 100743,
+    "annotations": [
+      
+        "timestamp": 1458702548467000,
+        "value": "sr"
+        "endpoint": 
+          "serviceName": "example",
+          "ipv4": "192.168.1.2",
+          "port": 9411
+        ,
+      
+    ],
+    "binaryAnnotations": [
+      
+        "key": "bytes_sent",
+        "value": "1783"
+        "endpoint": 
+          "serviceName": "example",
+          "ipv4": "192.168.1.2",
+          "port": 9411
+        ,
+      
+    ]
+ 
+]
+lstlisting
+
+
