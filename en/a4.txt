@@ -1,0 +1,17 @@
+Attachment 4 : Native Agent Arguments
+page1
+The native agent accepts several arguments which can be used to affect the agent behavior. In local instrumentation server mode, several arguments affect also the sever started from the agent. Available arguments are:
+itemize
+	instrumentorserverjar - specifies the path to the instrumentation server JAR. It is a mandatory argument in case the instrumentation server is supposed to run per each node of monitored application.
+	instrumentorservercp - specifies the classpath for the instrumentation server. It can be used to add application specific classes on the server classpath which has the effect that the monitored application does not have to send to the server these classes if they need to be instrumented or if some class to be instrumented depends on them.
+	instrumentormainclass - specifies the main entry point for the instrumentation server. It is a required argument in case of local instrumentation server mode.
+	connectionstr - specifies the type of connection between native agent and the instrumentation server. It is a mandatory argument in shared instrumentation server mode in which case the value is in format tcp://ip:port where ip:port is address of the instrumentation server. Otherwise, the agent and server communicates via inter-process communication and the argument can be set in format ipc://identifier where identifier specifies the name of pipe in case of Windows and name of the file used for IPC in case of Unix. However this value is set automatically at run-time if not explicitly specified as the argument.
+	logdir - specifies the log directory for the agent and when running in local server mode, specifies the log directory for the server as well.
+	loglevel - specifies the log level for the agent and when running in local server mode, specifies the log level for the server as well.
+	spanexporter - specifies the span exporter type. The value can be either 
+ directZipkin(ip:port), where ip:port is address of the Zipkin user interface or disk(destination), where destination represents the output directory for the captured spans. 
+	
+	Custom span exporters are supported as well. In that case, the format of the value is fully qualified name of the span exporter with arguments in parenthesis, for example as com.span.exporter(arguments)
+	classoutputdir - specifies the output directory for several helper classes received from the instrumentation server. This value is automatically set if not configured explicitly.
+	configfile - specifies path to a configuration file containing the agent configuration. It can contain all arguments mentioned above, except the configuration file argument. Argument entries in the configuration file are in the format arg=value and each entry is on a new line of the configuration file. 
+itemize

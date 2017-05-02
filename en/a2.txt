@@ -1,0 +1,10 @@
+Attachment 2: List of Examples
+The source code of the thesis contains several examples. They can be run manually by first compiling the sources and then starting using the provided scripts. The examples are also available in the provided Docker machine. This docker machine contains all compile and run-time dependencies for the tool to be able to run and examples can be run in this machine as well.
+
+The list of available examples:
+enumerate
+	DependencyInstrumentation 	This example just demonstrates the basic instrumentation functionality on dependent classes. It does not have any output do the user interface.
+	H2OSumMRTask 	This larger example demonstrates the tool on the H2O  machine learning platform. The cluster of three H2O  nodes is started and simple map-reduce tasks is executed within this cluster. The internals of map-reduce task are monitored and the associated spans are shown in the Zipkin user interface.
+	SingleJVMCallback 	This example demonstrates how the Distrace tool can be used to instrument and monitor the the callbacks. This example is using only a single JVM with multiple threads.
+	SingleJVMThread 	This example shows how thread can be instrumented in monitored. This example is running on a single JVM with multiple threads.
+enumerate

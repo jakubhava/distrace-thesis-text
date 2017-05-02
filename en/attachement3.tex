@@ -1,0 +1,26 @@
+\chapter*{Attachment 3: Building And Running}
+To build both, the native agent and the core instrumentation server, the developer needs to obtain the Distrace tool sources\footnote{Distrace is available at \url{https://github.com/jakubhava/Distrace}.} and call \texttt{./gradlew build}\footnote{On Windows, \texttt{./gradlew.bat build}} command, which builds the tool and produces artifacts for the core instrumentation server and the native agent as well. The build process requires several dependencies to be available.
+
+The instrumentation server requires Java 8 to be available. It has dependencies on several libraries, but these are downloaded automatically by the build process.
+
+The native agent depends on several libraries, which need to be available on the system:
+\begin{itemize}
+	\item Boost-filesystem
+	\item Boost-system
+	\item Nanomsg
+	\item Nanomsgxx
+	\item Cmake
+\end{itemize}
+The last dependency is required to be able to build the native agent project. Any C++11 compliant compiler needs to be available as well.
+
+Once the artifacts are built the user may extend the core instrumentation server with the instrumentation definition. The application can be further run using the following incantation:
+
+\texttt{java -agentpath:"\$NATIVE\_AGENT\_LIB\_PATH=\$AGENT\_ARGS" -jar app.jar}
+
+The \texttt{\$NATIVE\_AGENT\_LIB\_PATH} shell variable should point to the location of the native agent library and \texttt{\$AGENT\_ARGS} shell variable may contain any arguments passed to the native agent. The arguments are in the format \texttt{key=value} and are separated by the semicolon. Please see the Attachment 4 for the full list of available native agent arguments.
+
+In order to be able to see the spans in the user interface, we need to start the Zipkin user interface first. The user interface server may be started as: \texttt{java -jar zipkin.jar}\footnote{Zipkin Jar file may be downloaded at \url{https://github.com/openzipkin/zipkin} or is available at the attached CD.}.
+\section{Running Docker Examples}
+ In order to run this example without the need to set up all dependencies, the Docker container with this example is prepared. This container contains all Distrace dependencies and when started, is also automatically starts the Zipkin user interface on the default port. To run any example in Docker, Docker needs to be available, the Distrace source directory needs to be available as well\footnote{The sources are not actually needed for running the examples in docker, but the script which is used to start the docker machines is available there as well.} and the following script should be called: \texttt{./docker/run-test.sh}\footnote{On Windows, \texttt{./docker/run-test.cmd}}. 
+ 
+Both these scripts expect a single argument representing the example name. When this argument is missing, the list of available examples is printed to the console.
