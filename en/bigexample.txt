@@ -1,0 +1,174 @@
+Realistic Case Study
+chap:big_example
+This chapter demonstrates how the Distrace tool can be used on bigger example and also serves as the user manual for creating custom monitoring applications. We will go through all the steps from creating the application up to running the application and accessing the observed results.
+
+This example is based on the H2O(More information about H2O can be found on https://www.h2o.ai and https://github.com/h2oai) open-source fast scalable machine learning platform. This platform supports various methods for building machine learning models, methods such as deep learning, gradient boosting or random forests. The core of the H2O platform is written in Java and clients for different languages exist as well. Internally, H2O is using map-reduce computation paradigm(Map-reduce is a programming model in distributed systems. The basic idea is to split tasks into smaller parts and perform the map operations. The intermediate results are then combined together using the reduce calls until the complete result has been assembled from all the sub-tasks.) to perform various tasks across the cluster.
+
+The goal of this example is to monitor a subset of map-reduce tasks and see visualizations of the computation process. This can help reasoning about performance of the platform and can discover unwanted delays in the computations. This chapter first describes relevant parts of the H2O platform in more details. In the following sections we describe in steps how to extend the core instrumentation library for H2O purposes. Lastly, we show how this example can be started and how visual output can be interpreted. 
+This full example is also available in the attached source code of the thesis in the Attachment 1. More examples are available and the list and instructions on how they can be run is in the Attachment 2.
+
+H2O In More Details
+H2O is in-memory machine learning platform. The computations are performed in cluster, where the cluster consists of several H2O nodes. All nodes in the cluster are equal and each of them can initialize the computation. Each computation is performed as a map-reduce task. This section describes the internal format of data used in the H2O platform, how data are stored on the nodes and lastly, how the computations is performed in the cluster. 
+
+Data in H2O
+Data are stored in H2O in so called Frames. Frame is an in-memory distributed data table with columns and rows. The Frame is designed in a way, that it can handle data too big to fit into a memory of a single machine. Each column is represented by the Vec class. This class represents vector of data that is again distributed across nodes in the cluster. Further, each vector is split into multiple Chunks and each chunk represents the part of the vector physically available on a single node. 
+
+It is possible for one node to contain multiple chunks from a single vector and therefore, the number of chunks in the vector does not represent the number of nodes on which the data are distributed. Typically, data imported to H2O are distributed via chunks equally among all the nodes in the cluster, but algorithm may also decide to distribute the data on just several nodes in the cluster. It is also possible to create the frame manually and specify on which nodes the chunks should be stored. Therefore, the frame may be distributed only on a portion of the cluster. Usually when chunks are being created on some specific node, chunks of the same size for each column are created on that node. This means that each node storing the data usually have corresponding (neighbor) chunks for all the columns. This can be though of that each node storing some data has a subset of rows from the full table with all columns.
+
+The Figure fig:h2o_frame shows the structure of the frame with three columns, where each column is split into two chunks. It also shows how chunks may be distributed in the cluster of size three. We can also see in the figure that corresponding chunks for each vector have the same size and are stored on the same nodes. 
+
+	figure
+		h2o_frame.png
+	Structure of the H2O frame and its distribution in the cluster.
+	fig:h2o_frame
+	figure
+
+Computation in H2O
+When the user tells H2O to create a deep learning model based in the data on the input, H2O sees this as a Job. Jobs are used to track long-lifetime user interactions and encapsulate the whole computation from the user point of view. The job can consist of several map-reduce tasks. In H2O, the class MRTask is used as the core implementation of a map-reduce task. The map-reduce task is always bound to some H2O frame on which the computation needs to be performed. This class is used to encapsulate the task, partition it to a smaller tasks and run remote computations among the whole cluster. The map operations are called on each node, which contains locally available chunks for the frame this task is based on. The reduce calls are used to reduce the result from two sub-tasks into a new task with combined result from the children.
+
+In more detail, the class MRTask extends from DTask. This class is a general class used in H2O to represent task remotely executed. Further, DTask class extends from the H2OCountedCompleter class. The last class is a simple wrapper around the Fork/Join (F/J) execution framework(For more information, please read Java documentation for Fork/Join framework available at https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html.) allowing the platform to prioritize tasks. The Fork/Join framework is an implementation of Java ExecutorService, which helps with job parallelization on multiple processors. The Fork/Join framework executes tasks in separated threads and can move tasks between threads to ensure the highest possible performance. Each H2O MRTask is executed as ForkJoinTask inside this execution framework. A ForkJoinTask is a task wrapper, which can run inside a single thread. It is a light-weight wrapper and large number of tasks may be served by smaller number of actual threads.
+
+The way how H2O perform computation from high-level point of view can be seen in Figure fig:h2o_overview. The task initiator receives the MRTask from the parent Job or from the user. It splits the task into two new sub-tasks and send these tasks to up to two different nodes in the cluster. These nodes again split the task from the input and send the task to another selected nodes in the cluster. Each splitting decreases the number of nodes on which the task has to be sent. Once this number os one, the node is marked as a leaf node and does not perform any other splitting and re-sending.
+
+figure
+		h2o_overview.png
+	High-level overview of execution hierarchy.
+	fig:h2o_overview
+figure
+
+It is important to say that the MRTask is always distributed to all nodes in the cluster. This figure shows how it is ensured that each node participates in the computation, however the the computing step itself is still missing. Each node of the cluster, who receives a task, also submit the task for computation into the Fork/Join execution framework. This computation performs the mapping operation on all the chunks, which are available locally on the node executing this task, for the frame associated to the task. The reduce operation follows the map operation, however we need to first ensure that the child tasks, from which we want to combine results together, are already finished. This is ensured by child tasks signaling to the parent tasks when the work has been finished. Therefore, parent tasks are informed when they can start reducing the results. 
+
+The computation on a single node is shown in the following pseudo-code:
+lstlisting[language=Java]
+	 MRTask task = ... // task received from the parent or from the user
+	 MRTask left = split(task, start1, end1)
+	 MRTask right = split(task, start2, end2)
+	 remoteCompute(left)
+	 remoteCompute(right)
+	 H2O.submitTask(task) // submit this task into local F/J
+	..
+	// task is taken from F/J for execution
+	task.map(..)
+	task.waitForComplete() // wait for the child tasks to finish
+	task.reduce(left, right)
+	notifyComplete(task) // notify parent of completion
+lstlisting
+The split method accept indices representing nodes in the cluster on which this sub-task and further sub-sub-tasks may be executed.
+
+The last missing piece of information is description of what is done when the node has more chunks available for the frame associated with the task, since each map operation is executed only per single chunk. In case the node has multiple chunks available for the frame, the node always locally submits two new tasks into the F/J framework, each having half of the chunks. This is recursively repeated until we have tasks of size one chunk, which are processed normally. These locally-split tasks inform their parents that they are done. This signalization goes up the tree until the original task is marked finished.
+
+Methods for Instrumentation
+For purpose of this example, a special MRTask called SumMRTask has been created. This task just perform distributed sum of the range of the numbers. In order to be able to visualize the computation process of this task, the following MRtask methods are important for the instrumentation
+itemize
+	dfork - this method is called at the initiator node and starts the computation of the whole task.
+	getResult - this method is called at the initiator and blocks until the distributed computation finishes.
+	setupLocal0 - this method splits the task, creates sub-tasks for child nodes and finally, submits the sub-tasks to the target child nodes.
+	map - the map operation.
+	reduce2 - the reduce operation.
+	compute2 - this method handles the computation itself by calling the map implementation.
+	onComplete - this method waits for the sub-tasks to finish and then calls reduce2 on them.
+itemize
+
+We are also interested in how long the remote computation lasts on child nodes. For this reason we need to instrument the following two methods on the RPC class:
+itemize
+	call - this method is called when the remote computation has been submitted.
+	response - this method is called when the remote computation has been finished and the child node is signaling that its work is done.
+itemize
+
+Building the Core Server and Native Agent
+In order to be able to extend the core instrumentation library, we need to build it first. This won't be necessary once the core instrumentation server is published to some online repository of JAR packages(For example, Maven Central Repository.) The native agent also needs to be built on the platform where H2O will be running. 
+
+Please see the Attachment 3 for the information on how to build the project from sources or how to run this example from the prepared Docker machine. 
+
+Extending the Core Instrumentation Server
+In order to capture the relationships between tasks and their computations, we need to instrument the methods mentioned in the previous section. It is important to always find a good pair of methods ,which open and close a single span. In case of H2O, the following calls have been identified to form good spans. The pairs are ordered from the top level spans encapsulating the whole computation to the local spans encapsulating single mapping or reduce operations.
+
+enumerate
+	dfork - getResult. This pair is used to open the main span, which encapsulates the complete computation of a single MRTask. This is possible since the dfork method is only called on the node where the computation starts and the same holds for the getResult method after computation finished. The span is opened when the first method is entered and closed when the later method is leaved.
+	
+	setupLocal0 - onCompletion. This pair forms the span representing the complete communication on a single node. It encapsulates the local work as well as the waiting for the remote work to complete. This span is opened when the first method is entered and leaved when the later method is leaved. This span is well-defined since the onCompletion method is called for each task and represents that the work has been finished in all children tasks.
+	
+	call - response. This pair forms the span used to track only remote computation. It encapsulates the remote computation and all following sub-tasks created by the remote task. This span is opened when the first method is entered and closed when the second method is leaved.
+	
+	compute2 - onCompletion. This pair forms the span used to encapsulate the computation on a local node. It encapsulates all the cases of local work. In case multiple chunks exist for the given local task on the same node, this method is recursively called on split tasks until we have tasks representing a single chunk. The calls are also recursively confirmed by the onCompletion call. 
+	
+	In multi-chunk case, only one child task is submitted for execution into F/J thread. The second task is executed immediately in the same thread. This way it is ensured that we can reuse the existing thread as much as possible. This span is opened when the first method is entered and closed when the later method is leaved.
+	
+	map - map. This pair represents the single mapping operation. This span is entered when the map method is entered and closed when the map method is leaved. Therefore, this span lasts only for the duration of the map method call.
+	
+	reduce2 - reduce2. This pair represents the single reduce operation. This span is entered when the reduce2 method is entered and closed when the reduce2 method is leaved. Therefore, this span lasts only for the duration of the reduce 2 method call.
+enumerate
+
+For all of the pairs above, the Advice API is used for the instrumentation because it's sufficient on our case to be able to capture just method enter and exit events. In case we would like to perform more complex instrumentation, we could use Interceptors API, which is described in the Byte Buddy documentation and briefly also in Section sec:byte_buddy.
+
+Instrumenting these methods is a technical task and the code can be seen in the corresponding example available in the Attachment 1. The trace context information is always attached to the task transferred between the nodes. The trace context is initially created during the dfork method call, since it's the main entry point of the computation. When instrumenting compute2 and setupLocal0 methods, the deep copy of the trace context is attached to the transferred task, because the onComplete method is usually called from different thread and this ensures there are no collisions caused by accessing the same trace context from multiple threads.
+
+Also, when instrumenting a few of the mentioned methods, we need to ensure that correct pairs of spans are created and closed. For this purpose we use flags available on the Span class. Flags allow us to attach additional information to the trace context, which may be used when closing the span. This is for example useful in cases when a method is used to close several spans at the same time and we need to properly distinguish between the spans to close the correct one.
+
+Once all the advice or interceptors are created for each of the mentioned methods above, we need to create the transformers. The transformer defines on which method from the applications's code which advice or interceptor is applied. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer for RPC.class defining instrumentation of the call and the response method looks like:
+
+lstlisting[language=Java]
+new BaseTransformer() 
+@Override
+public DynamicType.Builder<?> 	defineTransformation(
+	DynamicType.Builder<?> builder) 
+
+	Method call = ReflectionUtils.getMethod(RPC.class, "call");
+
+	return builder.visit(Advice.to(RPCAdvices.call.class).on(is(call))).
+	visit(Advice.to(RPCAdvices.response.class).on(named("response")));
+
+);
+lstlisting
+The RPCAdvices.call static class and RPCAdvices.response class are the advice, which defines the instrumentation.
+
+Once the transformers for each instrumented class are created, we need to associate the transformers with the classes from the application on which they should operate. We also need to create a main entry point of the extended instrumentation server. This is demonstrated on the following code snippet:
+
+lstlisting[language=Java]
+ public static void main(String args[]) 
+	new Instrumentor().start(args, new MainAgentBuilder() 
+	@Override
+	public AgentBuilder createAgent(
+	BaseAgentBuilder builder,
+	String pathToHelperClasses) 
+	 	 
+	return builder.type(isSubTypeOf(MRTask.class))
+	.transform(mrTaskTransformer)
+	.type(is(RPC.class))
+	.transform(rpcTransformer)
+	         
+	  );
+	 
+lstlisting
+In this code we associate a class to each transformer and also, we are starting the instrumentation server using the API provided by the core instrumentation server with the MainAgentBuilder instance. This instance is later used as a dispatcher of instrumentation of the whole application.
+
+Later, when starting the application with the native agent attached and configuring the agent, we need to explicitly specify the class, which is used as the main entry point. This is exactly the class containing the main method with the content above.
+
+Now we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H2O application sources. The first dependency is obvious as we are using the API defined in the library. The second library is required since we are using several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify the class to be instrumented for example by its name as named("fully.qualified.class.name) instead of is(Example.class). The second option, however, gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located in the instrumentor and when they are requested to be instrumented, their original bytecode don't have to be sent from the native agent. 
+
+After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
+Configuring and Running the Application
+For the purposes of this example, we start the cluster of three H2O nodes. Two nodes are the regular nodes and the last node contains the main method in which the SumMRTask is executed. This task is used to sum up range of numbers in distributed manner.
+
+Arbitrary H2O node can be started as: java -jar h2o.jar -name clustername.When operating on the network with multi-cast communication enabled, multiple nodes started with the same cluster name automatically forms a single cluster.
+
+If we want to start the application with the monitoring agent attached, we can use the -agentlib java option. Any H2O node can be started with the monitoring feature enabled by calling the following command: java -agentpath:"NATIVEAGENTLIBPATH=AGENTARGS" -jar h2o.jar  -name clustername
+
+The NATIVEAGENTLIBPATH variable needs to point to the location of the native agent library and AGENTARGS shell variable may contain any arguments passed to the native agent. The arguments are in the format key=value and are separated by the semicolon. The complete list of available arguments is in the Attachment 4.
+
+In case of this example, we let the native agent to start the instrumentation server locally for each node automatically. Therefore, the inter-process communication is used and we don't need to configure it explicitly. Only two arguments need to be specified - the path to the instrumentation server and the fully qualified name of the main entry class of the instrumentation server.
+
+Therefore, the full command starting H2O with the monitoring agent enabled is: java -agentpath:"/home/agent.so=instrumentorserverjar=/home/instrumentor.jar;instrumentormainclass=main.entry.pint" h2o.jar -name clustername
+
+In order to start the cluster of size three, we need to call this command three times. Twice with the regular H2O node and once with the H2O node containing the execution of the SumMRTask. It is also important to start the Zipkin user interface to which the results are published. The user interface server may be started as: java -jar zipkin.jar(Zipkin Jar file may be downloaded at https://github.com/openzipkin/zipkin or is available at the attached CD.).
+The Results
+Once all three nodes have been started, the computation starts and the results based on our instrumentation are shown directly in the Zipkin user interface. By default, the user interface is available at port 9411.
+
+We need to click on the Find Traces button to show all traces, which satisfy our search conditions. We should see in the output a single trace and once we click on it, we should see similar result to the one in Figure h2o_zipkin_output. This figure shows just portion of the whole trace, but contains the important observed information.
+	figure
+		h2o_zipkin_output.png
+	Example trace from the distributed computation on H2O platform.
+	h2o_zipkin_output
+	figure
+
+All the operations and their timing can be seen on the output and we can see how long each operation lasted and when it started. The spans are also organized hierarchically as they were created. We can see the main span encapsulating the whole computation, the spans for computation on each node and also spans encapsulation the remote computations. The local map and reduce calls are displayed as well. It is, for example, interesting to see how long it took the platform to perform the reduce operation after the map operation has been called.
