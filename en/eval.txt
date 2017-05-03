@@ -1,0 +1,132 @@
+Evaluation
+chap:evaluation
+This chapter firstly shows the measurements of how long the monitored application starts with and without the tracing enabled. These measurements are based on the case study available in Chapter chap:big_example. This section is followed description of known limitations of the Distrace tool.
+
+Measuring the Tool Overhead
+This sections measures the overhead of the Distrace tool on the H2O example. We measure how long the example run from the start to end when the agent is attached and monitoring enabled and also in the opposite case. This measurement is highly specific on the type of the target program since it depends on several factors, such as the number of classes being instrumented or whether we optimized the performance by adding the application classes on the classpath of the instrumentation server.
+
+In this measurement, we use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the Distrace tool. We also run the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically. The measurements have been performed on H2O cluster of size three with 16 GB memory available and Intel Core I7 quad-core CPU.
+
+The following Table bench1 contains numbers in seconds how long it took to start the whole cluster of size three, with and without the instrumentation enabled.
+
+center
+	tabular l l l 
+		Run Number & Monitoring off & Monitoring on 
+ 1 & 37,378s	& 40,912s	
+
+2 & 30,699s & 50,104s	
+
+3 & 36,902s & 45,844s	
+
+4 & 36,709s	& 46,502s	
+
+5 & 31,063s	& 47,503s	
+
+6 & 30,799s &	50,440s	
+
+7 & 36,799s &	44,695s	
+
+8 & 37,358s	& 50,504s	
+
+9 & 37,844s	& 47,444s	
+
+10 & 36,969s	& 44,909s	
+
+  
+average & 35,252s & 46,886s 
+
+standard deviation & 3,054s & 3,026s 
+
+	tabular
+	tableThe start-up time of the whole cluster.bench1
+center
+We can see that in this case the average run time with monitoring enabled is on the average 10 seconds slower. This can be explained as the overhead of starting the instrumentation server from the native agent on a single machine for all three H2O nodes in the cluster.
+
+The following Table bench2 shows how long only the computation of the first map-reduce task lasted with monitoring enabled and disabled.
+
+center
+	tabular l l l 
+		Run Number & Monitoring off & Monitoring on 
+ 1	&12,232s&	16,810s  
+ 
+2 	&12,359s &	14,467s 
+ 
+3	&12,293s &	15,681s 
+ 
+4	&12,331s &	13,196s 
+ 
+5	&12,229s &	11,055s 
+ 
+6	&12,360s &	15,037s 
+ 
+7 &	11,867s	&11,839s  
+ 
+8	 &	12,399s &17,246s  
+ 
+9&	12,256s 	&11,088s  
+ 
+10	&12,323s &	15,500s 
+ 
+
+	
+	average & 12,265s & 14,192s 
+
+	standard deviation & 0.151s & 2.283s 
+
+	tabular
+	tableRun tume of the first map-reduce task.bench2
+center
+
+The overhead in the case when the monitoring is enabled is caused by the instrumentation of the classes when they are first needed. We can also see that the deviation is higher in the case when instrumentation is enabled. This may be explained as the variety in transfer times of the classes between the instrumentation server and the agent.
+
+Lastly, the final Table bench3 shows how long each subsequent computation run, also in case when monitoring is enabled and disabled. This means that we omit the first map-reduce task computation and measure only following calls when all instrumentation has already finished for the required classes.
+center
+	tabular l l l 
+		Run Number & Monitoring off & Monitoring on 
+ 1&	2,025s&	3,279s 
+ 
+2&	2,025s&	4,143s 
+
+3&	2,030s	&3,153s 
+
+4&	1,079s&	4,225s 
+
+5&	1,025s&	3,653s 
+
+6&	1,071s	&3,367s 
+
+7	&0,990s&	3,055s 
+
+8&	1,064s	&2,659s 
+
+9&	0,264s&	3,254s 
+
+10&	0,999s&	2,721s 
+
+
+
+average & 1,257s & 3,351s 
+
+standard deviation & 0.583s & 0.527s 
+
+tabular
+tableRun time of the following map-reduce tasks.bench3
+
+center
+
+We can see that there is still overhead by the introduced monitoring, but not a significant one. This overhead is caused by the extra work introduced by the monitoring tool. This can be, for example, checking whether we are closing the correct span or exporting the span.
+
+Known Limitations
+The Distrace tool has a few limitations, which we would like to address in the future.
+itemize
+	Required Java version 	Distrace requires Java 8 to be available. The platform has been tested on several Java 7 implementations and several internal Java bugs occurred. These problems are already fixed in the Java 8. Even though Java 7 is being replaced by Java 8 nowadays, it still can be seen like a limitation of this tool.
+	Overriden getResourceAsStream method 	The instrumentation process requires that the getResourceAsStream is able to return a class file for a class. However, developers may override this method and not provide the class files when we ask for them. When this happens and we are not able to load the class file using this method, another attempt to load the class file with a different approach is done, however this is still a limitation of the Distrace tool.
+	
+	Attaching Agent at Run-Time 	Currently, the native agent has to be attached prior the application start using the -agentlib or -agentpath options. However, Java provides the attachment API allowing the agents to join at run-time of the application. This has the benefit that the application can be started without any additional arguments. The thesis contains the sub-project called agent-attacher, which is using the attachment API and attaches the agent to the running application, but currently, the agent does not perform any tasks when it's attached at run-time.
+	
+	The agent is disabled for this use-case since we would need to properly handle and separate the instances of instrumented classes before and after the instrumentation. It is possible that an instance of some class have been created, the class has been instrumented, and new instances of this class have been created. Therefore we would have instances of the same class, first instrumented and the second not. This could be a problem at some applications and therefore, allowing this feature still needs a further investigation.
+itemize
+
+
+
+

@@ -5,3 +5,13 @@ The instrumentation overhead can be still observed even though we are instrument
 
 Comparing to related Google Dapper, the tool introduced by this thesis is open-source and allows higher application transparency since purpose of Google Dapper is to monitor only Google applications. Comparing to Zipkin, the user does not need to change the application sources in order to attach span and trace information. This ensures that the source code of the original application remains unchanged. The tool provided by this thesis does not aim to replace any of the mentioned tools, however it tries to create universal tool with keeping performance in mind and ensuring the usage for the end-user is as simple as possible.
 
+\section{Future plans}
+ The final section points out the future plans related to the Distrace tool.
+This tool is planned to be extend in the future. Mainly, the tool should be improved in the following areas:
+\begin{itemize}
+	\item \textbf{More Additional Span Exporters} \newline
+	Currently, the tool provides two default span exporters and allows the user to extend the \texttt{SpanExporter} abstract class and implement custom ones. However, we would like to create more exporters in the future, which would be able to store spans into different storage types and also in different formats. At this moment, the output is in the JSON format understandable to the Zipkin user interface and the data are exported either to disk or are send to the user interface right away. We could, for example, create a span exporter, which could export spans into a database. from which the arbitrary user interface could fetch the data.
+	\item \textbf{Support for Flame Graphs} \newline
+	The second future plan is to add support for flame charts. The native agent could be used to capture the stack-traces of the running application and later, a flame graph representing the distributed computation could be created. For example, this integration would give us the ability to inspect the memory-usage or performance cluster-vise using the flame graphs visualization.
+\end{itemize}
+
