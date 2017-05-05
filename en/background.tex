@@ -154,20 +154,20 @@ CGLib\footnote{CGLib library is hosted at \url{https://github.com/cglib/cglib}.}
 Byte Buddy\footnote{Byte Buddy library is developed by Rafael Winterhalter and is freely available at \url{https://github.com/raphw/byte-buddy}. The page contains also a full API documentation and code examples.} is fairly new, light-weight and high-level bytecode manipulation library. The library depends only on the visitor API of the ASM library, which does not further have any other dependencies. It does not require from the user to understand the format of Java bytecode, but despite this, it gives the users full flexibility to redefine the bytecode according to their specific needs. Despite its high-level approach, Byte Buddy still offers great performance \cite{ByteBuddy_Perf} and is used at frameworks such as Mockito\footnote{Mockito is a mocking framework with a clean API allowing developers to write readable tests. More information is available at \url{http://mockito.org}.} or Hibernate\footnote{Hibernate is an open source Java persistence framework project and provides object-relational mapping in the Java programming language. More information is available at \url{http://hibernate.org}.}. Byte Buddy can be used for both code generation and transformation of the existing code.
 
 \subsubsection{Code Generation}
-Code generation is done by specifying from which class a new class should be sub-classing. In the most generic case, class can be created based on the \texttt{Object} class. The newly created class can introduce new methods or intercept methods from its super class. In order to intercept existing methods (change their behavior and return value), the method to be intercepted has to be identified using instances of the \texttt{ElementMatchers} class. These matchers allow the developer to identify methods using, for example, their names, number of arguments, return types or associated annotations. The whole list of matchers and also examples how code can be generated is greatly described in the documentation of the Byte Buddy library.
+Code generation is done by specifying from which class a new class should be sub-classed. In the most generic case, class can be created based on the \texttt{Object} class. The newly created class can introduce new methods or intercept methods from its super class. In order to intercept existing methods (change their behavior and return value), the method to be intercepted has to be identified using instances of the \texttt{ElementMatchers} class. These matchers allow the developer to identify methods using, for example, their names, number of arguments, return types or associated annotations. The whole list of matchers and also examples how code can be generated is greatly described in the documentation of the Byte Buddy library.
 
-The power behind Byte Buddy is also that it can be used to redefine classes at run-time. This is achieved by several concepts, mainly via Transformers, Interceptors and Advice API.
+The power behind Byte Buddy is also that it can be used to redefine classes at run-time. This is achieved by application of several concepts such as Transformers, Interceptors and Advice API.
 \subsubsection{Code Transformation}
 \label{back:code_transform}
-In order to tell Byte Buddy what method or field to intercept, the place in code which triggers the interception has to be identified. First, a class containing the desired method for instrumentation needs to be located. It can be done by simply specifying the class name or using more complex structures. For example, the element matchers may be used to only consider all classes \texttt{A} extending class \texttt{B} whilst implementing interface \texttt{C} at the same time. 
+In order to tell Byte Buddy what method or field to intercept, the place in the code which triggers the interception has to be identified. First, a class containing the desired method for instrumentation needs to be located. It can be done by simply specifying the class name or using more complex structures. For example, the element matchers may be used to only consider all classes \texttt{A} extending class \texttt{B} whilst implementing interface \texttt{C} at the same time. 
 
-The next step is to define the \texttt{Transformer} class itself. Transformers are used to identify methods in the class, which should be instrumented, and they also specify the class responsible for the instrumentation itself. This class may be either Interceptor or Advice and their description is given in more detail in the following section. 
+The next step is to define the \texttt{Transformer} class itself. Transformers are used to identify methods in the class, which should be instrumented, and they also specify the class responsible for the instrumentation. This class may be either Interceptor or Advice and their description is given in more detail in the following sections. 
 
-The methods to be instrumented can be specified in the transformer using the element matchers. In more detail, \texttt{AgentBuilder.Transformer} interface has a method \texttt{transform} which takes \texttt{DynamicType.Builder} as it's argument. This builder is used to create a single transformer wrapping all the transformers for all classes in the code so the result of this builder can be thought of as a dispatcher of the instrumentation for complete application.
+The methods to be instrumented can be specified in the transformer using the element matchers. In more detail, \texttt{AgentBuilder.Transformer} interface has a method \texttt{transform} which takes \texttt{DynamicType.Builder} as its argument. This builder is used to create a single transformer wrapping all the transformers for all classes in the code so the result of this builder can be thought of as a dispatcher of the instrumentation for the complete application.
 
 There are two ways how to instrument a class in Byte Buddy. Either via Interceptors or via Advice API.
 \subsubsection{Interceptors}
-Interceptor is a class defining the new or changed desired behavior for the method to be instrumented.  The demonstration how Byte Buddy uses interceptors is shown on a small example. Let's assume the class \texttt{Foo} is the original unchanged class:
+\texttt{Interceptor} is a class defining new or changed desired behavior for the method to be instrumented.  The demonstration of how Byte Buddy uses interceptors is shown on the following small example. Let's assume the class \texttt{Foo} is the original unchanged class:
 \begin{lstlisting}[language=Java]
 class Foo {
 	String bar() {
@@ -176,7 +176,7 @@ class Foo {
 }
 \end{lstlisting}
 	
-Let's also assume that the Interceptor is of type \texttt{Qux}. The interception of the class \texttt{Foo} using the defined interceptor looks like this in schematic code:
+Let's also assume that the \texttt{Interceptor} is of type \texttt{Qux}. The interception of the class \texttt{Foo} using the defined interceptor looks like this in schematic code:
 
 \begin{lstlisting}[language=Java]
 class Foo {
@@ -194,28 +194,28 @@ class Foo {
 		
 It can, therefore, be seen that in the case of interceptors, Byte Buddy does not inline the bytecode to the \texttt{Foo} class but requires the interceptor class to be available on the machine where the instrumentation takes place. Also the interceptor field, in this case, \texttt{\$interceptor}, needs to be initialized before it is used for the first time. This is handled automatically by Byte Buddy framework using the special helper class called \texttt{LoadedTypeInitializer}. When the framework discovers that the instrumented class is about to be used for the first time, it initializes the static field to correct interceptor.
 
-However, Byte Buddy also provides ways how to handle setting interceptors field manually. It is a more technical task but required for example in cases when the instrumentation is happening on a different machine where Byte Buddy framework is not available.
+However, Byte Buddy also provides ways how to handle setting interceptors field manually. It is a more technical task but required, for example, in cases when the instrumentation is performed on a different machine where Byte Buddy framework is not available.
 \begin{enumerate}
-\item In Byte Buddy, the initialization strategy can be modified accordingly to the specific needs. The \textbf{no-op} strategy can be used, which has the effect of Byte Buddy not trying to initialize the interceptor fields. In this case, the user needs to handle the initialization. \texttt{LoadedTypeInitializer} instance can be recorded right before the class is about to be instrumented and this observed initializer can be used later for the initialization. This is especially useful in case the instrumentation happens in a different machine than in which the application is actually running. The initializer can be serialized together with the \texttt{Qux} \texttt{Interceptor} class to a machine with the application and a hook in the native agent can be created to call this initializer when the instrumented class is used for the first time.
+\item In Byte Buddy, the initialization strategy can be modified accordingly to the specific needs. The \textbf{no-op} strategy can be used, which has the effect of Byte Buddy not trying to initialize the interceptor fields and therefore, the user needs to handle the initialization. \texttt{LoadedTypeInitializer} instance can be recorded right before the class is instrumented and this observed initializer can be used later for the initialization. This is especially useful in the case the instrumentation happens in a different machine than in which the application is actually running. The initializer can be serialized together with the \texttt{Qux} \texttt{Interceptor} class to the machine with the application and a hook in the native agent can be created to call this initializer when the instrumented class is used for the first time.
 
-\item Instead of referring to \texttt{Qux} as an instance, it can be delegated to as a static \texttt{Qux} class. In this case, no initializers have to be used since no interceptor field is required and the interception is performed via static methods. However, the interceptor class still needs to be known at run-time. This is demonstrated in a simple code bellow.
+\item Instead of referring to \texttt{Qux} as an instance, it can be delegated to as the static \texttt{Qux} class. In this case, no initializers have to be used since no interceptor field is required and the interception is performed via static methods. However, the interceptor class still needs to be available at run-time. This is demonstrated in the simple code bellow.
 
 \begin{lstlisting}[language=Java]
 class Foo {
-String bar() {
-// no need to have interceptor field
-return Qux.intercept(); 
-}
+	String bar() {
+	// No need to have interceptor field
+	return Qux.intercept(); 
+	}
 }
 \end{lstlisting}
 
-\item Instead of using Interceptors API, advice API which in-lines the code to the bytecode of the class itself may be used.
+\item Instead of using Interceptors API, advice API, which in-lines the code to the bytecode of the class itself, may be used.
 \end{enumerate}
 
 
 \subsubsection{Advice API}
-Advice API is another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the interceptors, but in cases where it's possible to use it, the code is in-lined into the bytecode of the original class and therefore no other dependencies are required. It is also stated in Byte Buddy documentation that performance of Advice API is better compared to the performance if interceptors.
-However, the instrumentation using Advice API is only allowed before or after the matched method. This is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations. 
+Advice API is another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the interceptors, but in cases where it's possible to use it, the code is in-lined into the bytecode of the original class and therefore no other dependencies on the Byte Buddy framework are required. It is also stated in the Byte Buddy documentation that performance of the Advice API is better compared to the performance of interceptors.
+However, the instrumentation using the Advice API is only allowed before or after the matched method. This is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations. 
 
 For example, the following method may be used as an advice: 
 \begin{lstlisting}[language=Java]
@@ -229,7 +229,7 @@ class CustomAdvice {
 }   
 \end{lstlisting}
 
-The method within a class on which the advice should operate needs to be defined. This is achieved by creating an instance of \texttt{Transformer} class which specifies the method to be instrumented.
+The method defined inside a class on which the advice should be applied needs to be defined. This is achieved by creating an instance of \texttt{Transformer} class which specifies the method to be instrumented.
 
 \begin{lstlisting}[language=Java]
 class CustomTransformer implements AgentBuilder.Transformer {
@@ -245,46 +245,45 @@ class CustomTransformer implements AgentBuilder.Transformer {
  }
 }
 \end{lstlisting}
-
-Lastly, the class on which the transformer should operate needs to be defined. This is done on the main Byte Buddy instrumentation builder object in the following way:
+We can see that we are applying the advice on the method with name \texttt{run} but we still haven't specified the class on which the transformer should perform the transformation. This is done in the main Byte Buddy instrumentation builder object in the following way:
 
 \begin{lstlisting}[language=Java]
 .type(is(Task.class))
 .transform(new CustomTransformer())
 \end{lstlisting}
 
-Therefore, in this case, the \texttt{CustomAdvice} is applied on \texttt{Task} in the \texttt{run} method.
+Therefore, in this case, the \texttt{CustomAdvice} is applied on the \texttt{Task} class in the \texttt{run} method.
 \section{Communication Middleware}
-This thesis consists of several parts written in different languages that need to be able to communicate together. In order to arrange communication in such a heterogeneous environment, following libraries have been inspected.
+This thesis consists of several parts written in different languages that need to communicate together. In order to arrange communication in such a heterogeneous environment, the following libraries have been inspected.
 \subsection{Raw Sockets}
 \label{raw_sockets}
-It this case raw sockets is not a library but it is referred to as using raw sockets on their low-level API. Using raw sockets has several advantages and disadvantages. It gives the user full flexibility and the highest possible performance since there isn't any additional layer between the application data and the socket itself. However, integrating different platforms and different languages can be time-consuming. Several frameworks have already been created to hide the implementation details of specific platforms so the user does not need to know about the language or underlying platforms differences.
+It this case, we don't cover any library but using the raw sockets on their low-level API. Using the raw sockets has several advantages and disadvantages. It gives the user full flexibility and the highest possible performance since there isn't any additional layer between the application data and the socket itself. However, integrating different platforms and different languages can be time-consuming. Several frameworks have already been created to hide the implementation details of specific platforms so the user does not need to know about the languages or differences between underlying platforms.
 \subsection{ZeroMQ}
 \label{zeromq}
-ZeroMQ\footnote{More information about the library is available at \url{http://zeromq.org}.} is a communication library built on top of raw sockets. The core of the library is written in C++, however binding into different languages exist. The library is able to transport messages inside a single process, between different processes on the same node or transfer messages over the network using TCP or also using multicast communication. The library also allows the user to create topologies using one of the many supported communication patterns. For example, publisher-subscriber or request-reply patterns are supported. The library has several benefits compared to raw sockets:
+ZeroMQ\footnote{More information about the library is available at \url{http://zeromq.org}.} is a communication library built on top of the raw sockets. The core of the library is written in C++, however binding into different languages exist. The library is able to transport messages inside a single process, between different processes on the same node or transfer messages over the network using TCP or also using multicast communication. The library also allows the user to create topologies using one of the many supported communication patterns. For example, publisher-subscriber or request-reply patterns are supported. The library has several benefits compared to the raw sockets:
 \begin{itemize}
 	\item Hiding the differences between underlying operating systems.
 	\item Message framing - delivering whole messages instead of a stream of bytes.
-	\item Automatic message queuing. The internals takes care of ensuring the messages are sent and received in correct order. The user can send the messages without knowing whether there are other messages in the queue or not.
+	\item Automatic message queuing. The internals take care of ensuring the messages are sent and received in the correct order. The user can send the messages without knowing whether there are other messages in the queue or not.
 	\item Mappings to different languages.
-	\item Ability to create different topologies. An example of a topology can be one-to-many communication pattern, where one socket can be connected to using multiple endpoints. 
+	\item Ability to create different topologies. An example of a topology can be one-to-many communication pattern, where one socket can be connected to multiple endpoints. 
 	\item Automatic TCP reconnection.
 	\item Support for zero-copy processing of messages.
 \end{itemize}
 \subsubsection{Zero-copy in ZeroMQ}
 The library tries to apply a concept called zero-copy whenever possible. When high-performance is expected from a system or network, copying of data is usually considered harmful and should be minimized as possible. The technique of avoiding copies of data is known as zero-copy.
 
-An example of data copying can be transferring data from a memory to a network interface or from a user application to an underlying kernel. It can be seen that zero-copy can't be implemented at all layers. For instance, without copying the data from the kernel to the network interface, no data could be actually exchanged. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a significant performance benefit.
+The example of data copying can be transferring data from a memory to a network interface or from a user application to an underlying kernel. It can be seen that zero-copy can't be implemented at all layers. For instance, without copying the data from the kernel to the network interface, no data could be actually exchanged. However, ZeroMQ can achieve zero-copy at least on the application message level so the users can create ZeroMQ messages from their data without any copying which is a significant performance benefit.
 \subsection{Nanomsg}
 \label{nanomsg}
-Nanomsg\footnote{More information about the library is available at \url{http://nanomsg.org/}.} is a socket library shadowing the differences between the underlying operation systems. It offers several communication patterns, is implemented in C and does not have any other dependencies. Generally, it offers very similar features to ZeroMQ since it's heavily based on it.
+Nanomsg\footnote{More information about the library is available at \url{http://nanomsg.org/}.} is a socket library shadowing the differences between the underlying operating systems. It offers several communication patterns, is implemented in C and does not have any other dependencies. Generally, it offers very similar features to ZeroMQ since it's heavily based on it.
 
-Unlike ZeroMQ, Nanomsg matches the full POSIX\footnote{POSIX is a family of standards used to maintain compatibility between Unix-like operating systems by specifying a well-known interface for system methods \cite{POSIX}. } compliance. The author of the library states that since it's implemented in C, the number of memory allocations is drastically reduced compared to C++, where, for example, C++ STL containers are used  Also compared to ZeroMQ, objects are not tightly bound to particular threads. This gives the user flexibility to create their custom threading models without significant limitations. Nanomsg also implements zero-copy technique at additional layers which again leads to performance benefits compared to ZeroMQ \cite{Nanomsg_Diff}.
+Unlike ZeroMQ, Nanomsg matches the full POSIX\footnote{POSIX is a family of standards used to maintain compatibility between Unix-like operating systems by specifying a well-known interface for system methods \cite{POSIX}. } compliance. The author of the library states that since it's implemented in C, the number of memory allocations is drastically reduced compared to C++, where, for example, C++ STL containers are used  Also, compared to ZeroMQ, objects are not tightly bound to particular threads. This gives the user flexibility to create their custom threading models without significant limitations. Nanomsg also implements zero-copy technique at additional layers which again leads to performance benefits compared to ZeroMQ \cite{Nanomsg_Diff}.
 
 As in ZeroMQ, Nanomsq supports the following transport mechanisms:
 \begin{itemize}
 	\item \textbf{INPROC} \newline
-	In-process communication is used for transporting messages within a single process, for example between different threads. In-process address is an arbitrary case-sensitive string starting with \texttt{inproc://}.
+	In-process communication is used for transporting messages within a single process, for example, between different threads. In-process address is an arbitrary case-sensitive string starting with \texttt{inproc://}.
 	\item \textbf{IPC}  \newline 
 	Inter-process communication allows several processes to communicate on the same node. The implementation uses native IPC mechanism available on the target platform. 
 	
@@ -297,37 +296,37 @@ As in ZeroMQ, Nanomsq supports the following transport mechanisms:
 
 Nanomsg can be used via the core C library, but several language mappings for different languages exist as well, which makes working with the library easier.
 \subsubsection{C++11 Mapping}
-Nanomsgxx\footnote{More information about Nanomsgxx mapping is available at \url{https://github.com/achille-roussel/nanomsgxx}.} a C++11 mapping for Nanomsg library. It is a small layer built on top of the core library making the API more C++11  friendly. Especially, there is no need to explicitly tell when to release resources, since it's handled automatically in the class descriptors. The \texttt{nnxx::message} abstraction over Nanomsg \texttt{nn::message} automatically manages buffers for zero-copy and also errors are reported using the exceptions which are sub-classes from \texttt{std::system\_error}.
+Nanomsgxx\footnote{More information about Nanomsgxx mapping is available at \url{https://github.com/achille-roussel/nanomsgxx}.} is a C++11 mapping for the Nanomsg library. It is a small layer built on top of the core library making the API more C++11  friendly. Especially, there is no need to explicitly tell when to release resources, since it's handled automatically in the class descriptors. The \texttt{nnxx::message} abstraction over Nanomsg \texttt{nn::message} automatically manages buffers for zero-copy and also errors are reported using the exceptions which are sub-classed from the \texttt{std::system\_error} class.
 \subsubsection{Java Mapping}
-Several Java bindings of Nanomsg library exists, but only jnanomsg library\footnote{More information about jnanomsg mapping for Nanomsg library is available at \url{http://niwinz.github.io/jnanomsg/latest/}.}  is described here. This language binding is built on top of JNA (Java Native Access)\footnote{Java Native Library is a library allowing to use native shared libraries from Java without using JNI or native code. For more information about the library, please see \url{https://github.com/java-native-access/jna}.} library. It offers all the functionalities offered by the core library, but also introduces non-blocking sockets exposed via a callback interface.
+Several Java bindings of the Nanomsg library exists, but only jnanomsg library\footnote{More information about jnanomsg mapping for Nanomsg library is available at \url{http://niwinz.github.io/jnanomsg/latest/}.}  is described here. This language binding is built on top of JNA (Java Native Access)\footnote{Java Native Library is a library allowing to use native shared libraries from Java without using JNI or native code. For more information about the library, please see \url{https://github.com/java-native-access/jna}.} library. It offers all the functionalities offered by the core library, but also introduces non-blocking sockets exposed via a callback interface.
 
 \section{Java Libraries}
-This section describes some fundamental Java-related libraries and technologies on which this thesis heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described, followed by the basic introduction to the Java Native Interface.
+This section describes some fundamental Java-related libraries and technologies on which the Distrace tool heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described, followed by the basic introduction to the Java Native Interface. The last section introduces related details of Java Virtual Machine and the Java language.
 \subsection{JVMTI}
 \label{JVMTI}
-The JVM Tool Interface is an interface used by development and monitoring tools for communication with JVM. It allows the user to monitor and control the application running in Java virtual machine. An application communicating with the JVM using JVMTI is usually called an agent. Agents are notified via events occurring inside JVM and can react upon them. Agents run in the same process as the application itself, which reduces the delay in the communication between the application and the agent. Since JVMTI is an interface written in C, agents can be written in C or C++. 
+The JVM Tool Interface is an interface used by development and monitoring tools for communication with a JVM. It allows the user to monitor and control the application running in a Java Virtual Machine. An application communicating with the JVM using JVMTI is usually called an agent. Agents are notified via events occurring inside JVM and can react upon them. Agents run in the same process as the application itself, which reduces the delay in the communication between the application and the agent. Since the JVMTI interface is written in C, agents can be written in C or C++. 
 
-JVMTI supports two modes of how an agent can be started. It can be started either in \textbf{OnLoad} phase or in \textbf{Live} phase. In the \textbf{OnLoad} phase, the client is started together with the application and agent location can be specified using 2 arguments:
+JVMTI supports two modes of how an agent can be started. It can be started either in the \textbf{OnLoad} phase or in the \textbf{Live} phase. In the \textbf{OnLoad} phase, the location of the agent has to be specified and the agent is started together with the application. The agent location can be specified using two arguments:
 \begin{itemize}
 	\item \texttt{-agentlib:<agent-lib-name>=<options>} \newline
-	In this case, the agent library name to load is specified and it is loaded using platform specific manner.
+	In this case, the agent library to load is specified by its name and it is loaded using platform specific manner.
 	\item \texttt{-agentpath:<path-to-agent>=<options>} \newline
 	In this case, the path to a location of the agent library is specified and the agent is loaded from there.
 \end{itemize}
 
 In the \textbf{Live} phase, the agent is dynamically attached to a running application. This approach is more flexible since it is not required to attach the agent library to the monitored application in advance. However, it brings several limitations as well.
 
-The goal of this section is not to describe full JVMTI functionality, but just give the reader a brief introduction to the interface. For more details about JVMTI, please visit the official documentation\footnote{The official JVM Tool Interface documentation describes the full API and is available at \url{https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html}.}. The following sections try to briefly describe the important parts of JVMTI relevant to the thesis.
+The goal of this section is not to describe full JVMTI functionality, but just to give the reader a brief introduction to the interface. For more details about the JVMTI interface, please visit the official documentation\footnote{The official JVM Tool Interface documentation describes the full API and is available at \url{https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html}.}. The following sections try to briefly describe the important parts of JVMTI relevant to the thesis.
 
 \subsubsection{JVMTI Agent Initialization}
 \label{subsec:jvmti_init}
-When an agent is started, the following JVMTI method is always called: \linebreak \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)}. This method should contain the agent initialization specific for the application. Usually, the agent initialization process consists of several phases:
+When an agent is started, the following JVMTI method is always called: \linebreak \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)}.  \linebreak This method should contain the agent initialization specific for the application. Usually, the agent initialization process consists of several phases:
 \begin{enumerate}
 	\item Optionally, parse arguments passed to the JVMTI agent.
-	\item Initialize JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle threads switches automatically, so proper locking and thread management fully depend on the user code.
+	\item Initialize the JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle threads switches automatically, so proper locking and thread management fully depend on the user code.
 	\item Register capabilities of the JVMTI agent. The capabilities specify what are the operations the JVMTI agent can perform. The agent can be, for example, allowed to re-transform classes or react to different class hook events.
 	\item Register events the agent should react to. JVMTI does not inform the agent about all events by default, these events have to be manually defined.
-	\item Register callbacks for the events the agent is interested in. Even though the JVMTI supports more events, the interesting events are: 
+	\item Register callbacks for the events the agent is interested in. Even though the JVMTI supports more events, the interesting events for the thesis are: 
 		\begin{itemize}
 			\item \texttt{cbClassLoad}
 			\item \texttt{cbClassPrepare}
