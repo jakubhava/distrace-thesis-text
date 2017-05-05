@@ -12,9 +12,9 @@ The following three sections describe the basics of each of the mentioned platfo
 \label{dapper}
 Google Dapper \cite{DapperPaper} is a proprietary software used by Google. It is mainly used as a tool for monitoring large distributed systems and helps with debugging and reasoning about applications performance running on multiple hosts at the same time. Different parts of the monitored system do not have to be written in the same programming language. Google Dapper has three main pillars on which is built:
 \begin{itemize}
-	\item \textbf{Low overhead} \newline
+	\item \textbf{Low Overhead} \newline
 	Google Dapper should share the same life-cycle as the monitored application itself to capture also the intermittent events and thus, low overhead is one of the main design goals of the tool.
-	\item \textbf{Application level transparency} \newline
+	\item \textbf{Application Level Transparency} \newline
 	The developers and users of the monitored application should not need to know about the monitoring tool and are not supposed to change the way how they interact with the system when the monitoring tool is running. It can be assumed from the Google Dapper design paper that achieving application level transparency at Google was easier than it could be in more diverse environments since all the code produced by Google use the same libraries and share similar control flow practices.
 	\item \textbf{Scalability} \newline
 	Such a system should perform well on data of significantly large scale.
@@ -56,13 +56,13 @@ Zipkin architecture can bee seen in Figure \ref{fig:zipkin_architecture}.
 \end{figure}
 The instrumented application is responsible for creating valid traces. For that reason, Zipkin provides a set of pre-instrumented libraries ready to be used within the custom application and working well with the whole Zipkin infrastructure. Spans are stored asynchronously in Zipkin to ensure lower overhead. Once a span is created by the application, it is sent to the Zipkin collector. In General, Zipkin consists of four components:
 \begin{itemize}
-	\item \textbf{Zipkin collector} \newline
+	\item \textbf{Zipkin Collector} \newline
 	The collector is usually a daemon thread or process which stores, validates and indexes the data for future lookups.
-	\item\textbf{Zipkin storage} \newline
+	\item\textbf{Zipkin Storage} \newline
 	Data in Zipkin can be stored in multiple ways which makes the storage a pluggable component. For example, data can be stored in Apache Cassandra\footnote{Apache Cassandra is a free and open-source distributed NoSQL database. It is designed to handle large amount of data and also provides high-availability.}, MySQL\footnote{MySQL is an open-source relational database system.} or can be send to the Zipkin user interface right away without any intermediate storage. The last option is good for handling a small amount of data since the user interface is not supposed to handle storing data of big size.
-	\item \textbf{Zipkin query service} \newline
+	\item \textbf{Zipkin Query Service} \newline
 	This component acts as a query daemon allowing the user to query various information about spans using a simple JSON (Javascript Object Notation)\footnote{JSON is a lightweight data-interchangeable format based on object notation used in the Javascript programming language.} API.
-	\item \textbf{Zipkin web user interface} \newline
+	\item \textbf{Zipkin Web User Interface} \newline
 	A basic, but very useful user interface, which allows the user to see whole trace trees and all spans with dependencies between them. The user interface accepts the spans in JSON format. By default, it is available on port 9411.
 \end{itemize}
 The Zipkin web user interface is used as a front-end for the monitoring tool developed in the scope of this thesis. More information on how the user interface is used in the Distrace tool is described in more details in Section \ref{sec:zipkin_ui}.
@@ -72,57 +72,55 @@ The Zipkin web user interface is used as a front-end for the monitoring tool dev
  
 The disadvantage of this tool is the need for changing the code of the monitored application in order to allow the tracing and spans collection.
 \section{Tools for Large-Scale Debugging}
-Standard techniques and tools can be used for debugging distributed applications, however, the main purpose of these tools is to debug single node applications. Therefore, when applying them on nodes in the distributed application the information about dependencies between different nodes in the cluster is not available. Many tools for large-scale debugging exist, but this section just points out basic ideas behind two different approaches - discovering scaling bugs and behavior based debugging. 
+Standard techniques and tools can be used for debugging of distributed applications, however, the main purpose of these tools is to debug single-node applications. Therefore, when applying them on nodes of the distributed application, the information about dependencies between different nodes in the cluster is not available. Many tools for debugging of large-scale applications exist, but this section just points out basic ideas behind two different methods - discovering scaling bugs and behavior based debugging. 
 
 \subsection{Discovering Scaling Bugs}
-The scalability is one of the most important aspects of distributed systems. It is desirable to know how the platform scales when it process significantly large data and what is the expected scalability trend. It can happen that the platform can run significantly slower on big data than expected after testing on smaller data. This issue is usually called a scaling bug. Tools which can be used to help to discover scaling bugs are for example Vrishna and WuKong \cite{HPC}. Both of the mentioned tools are based on the same idea. They build a scaling trend based on data batches of a smaller size and the observed scaling trend acts as a boundary. The scaling bug becomes observable when the scaling trend is violated. The first tool, Vrisha, is not able to distinguish which part of the program violated the scaling trend. This is, however, possible in the second tool, WuKong. In comparison to Vrisha, WuKong does not build one scaling trend of the whole application but creates smaller models, each per some control flow structure in desired programming language. All these smaller models represent together the whole scaling trend. When the application observes the scaling bug, WuKong is able to locate the developer in the place in the code where the trend is probably violated.
+Scalability is one of the most important aspects of distributed systems. It is desirable to know how the platform scales when it process significantly large data and what is the expected scalability trend. It can happen that the platform can run significantly slower on big data than expected after testing on smaller data. This issue is usually called a scaling bug. Tools which can be used to help to discover scaling bugs are for example Vrishna and WuKong \cite{HPC}. Both of the mentioned tools are based on the same idea. They build a scaling trend based on data batches of a smaller size and the observed scaling trend acts as a boundary. The scaling bug becomes observable when the scaling trend is violated. The first tool, Vrisha, is not able to distinguish which part of the program violated the scaling trend. This is, however, possible in the second tool, WuKong. In comparison to Vrisha, WuKong does not build one scaling trend of the whole application but creates smaller models, each per some control flow structure in desired programming language. All these smaller models represent together the whole scaling trend. When the application observes the scaling bug, WuKong is able to locate the developer in the place in the code where the trend is probably violated.
 
 \subsection{Behavior-based Analysis}
-The second category of tools used for debugging large scale applications is based on behavior analysis. The basic idea behind these tools is creation of classes of equivalence from different runs and processes of the application. Using this approach, the amount of data used for further inspection is reduced down. These tools are especially helpful when discovering anomalies between different observed application runs. For example, STAT - Stack Trace Analysis Tool \cite{HPC}, is a lightweight and scalable debugging tool used for identifying errors on massive high-performance computing platforms. It gathers stack-traces from all parallel executions, merges together stack-traces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. 
+The second category of tools used for debugging large-scale applications is based on behavior analysis. The basic idea behind these tools is creation of classes of equivalence from different runs and processes of the application. Using this approach, the amount of data used for further inspection is reduced down. These tools are especially helpful when discovering anomalies between different observed application runs. For example, STAT (Stack Trace Analysis Tool) \cite{HPC}, is a lightweight and scalable debugging tool used for identifying errors on massive high-performance computing platforms. It gathers stack-traces from all parallel executions, merges together stack-traces from different processes that have the same calling sequence and based on that creates equivalence classes which make it easier for debugging highly parallel applications. 
 
 The other tool used as the example in this category is AutomaDed \cite{HPC}. This tool creates several models from an application run and can compare them using clustering algorithm with (dis)-similarity metric to discover anomalous behavior. It can also point to a specific code region which may be causing the anomaly.
 
 \section{Profiling Tools}
-Profiling is a form of dynamic code analysis. It may be used, for example, for determining how long execution of each part of the system takes compared to the time of whole application run or for example to determine which part of the application uses the most memory. Profiling tools can be divided into two categories:
+Profiling is a form of dynamic code analysis. It may be used, for example, for determining how long execution of each part of the system takes compared to the time of whole application run or, for example, to determine which part of the application uses the most memory. Profiling tools can be divided into two categories:
 \begin{itemize}
 	\item \textbf{Sampling Profilers} \newline
-Sampling profilers take statistical samples of an application at well-defined points such as method invocations. The points where the application should take samples have to be inserted at the compilation time by the compiler. These profiles are good to collect information about time of how long a method run, caller of the method or for example the complete stack-trace. However, they are not able to collect any application specific information.
+Sampling profilers take statistical samples of an application at well-defined points such as at the time of method invocations. The points where the application should take samples have to be inserted at the compilation time by the compiler. These profiles are good to collect information about time of how long a method run, caller of the method or, for example, the complete stack-trace. However, they are not able to collect any application specific information.
 	\item \textbf{Instrumentation Profilers} \newline
 The instrumentation profilers are based on the instrumentation of the application's source code. They record the same kind of information as the sampling profilers and usually give the developer the ability to specify extra points in the code where the application-specific data are recorded. 
 \end{itemize}
- Sampling profilers usually have less overhead compared to instrumentation profilers, but on the other hand, instrumentation profilers allow to monitor application-specific parts of the application.
- 
-Profilers can be also looked at from different point of view and categorized based on the level on which they operate and are able to record the information.
+ Sampling profilers usually have less overhead compared to instrumentation profilers, but on the other hand, instrumentation profilers allow to monitor application-specific parts of the application. Profilers can be also looked at from a different point of view and categorized based on the level on which they operate and are able to record the information.
 \begin{itemize}
 	\item \textbf{System Profilers} \newline
-	System profilers operate on operating system level. They can show system code paths but are not able to capture method calls, for example, in Java application.
+	System profilers operate on operating system level. They can record system code paths but are not able to capture method calls, for example, in Java application.
 	\item \textbf{Application Specific Profilers} \newline
 	Generally, application specific profilers are able to collect method calls within the application. For example, JVM profilers can show Java stack-traces but are not able to show the further call sequence on the operating system level.
 
 \end{itemize}
-The ideal solution for monitoring purposes of Java applications would be to have information from both kind of profilers, however combining outputs of these profiler types is not straightforward. The profilers used for collecting traces from both the operating system and JVM level are usually called mixed-mode profilers. JDK8u60 comes with the solution in a form of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}. The operating system is usually using this field to point to the most recent call on the stack frame and system profilers make use of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest stack frame from the stack pointer. That leaves this register available for various kind of JVM optimizations. The \textit{-XX:+PreserveFramePointer} option ensures that JVM abides the frame pointer register and does not use it as a general purpose register. Therefore, both system and JVM stack frames can appear in a single call hierarchy. Using the JVM mixed-mode profilers, it is possible to collect stack-traces leading to:
+The ideal solution for monitoring purposes of Java applications would be to have information from both kind of profilers, however, combining outputs of these profiler types is not straightforward. The profilers used for collecting traces from both the operating system and JVM level are usually called mixed-mode profilers. JDK8u60 comes with the solution in a form of extra JVM argument \textit{-XX:+PreserveFramePointer} \cite{MixedModeProfilers}. The operating system is usually using this field to point to the most recent call on the stack frame and system profilers make use of this field. In case of Java, compilers and virtual machines don't need to use this field since they are able to calculate the offset of the latest item on the stack frame from the stack pointer. That leaves this register available for various kind of JVM optimizations. The \textit{-XX:+PreserveFramePointer} option ensures that JVM abides the frame pointer register and does not use it as a general purpose register. Therefore, both system and JVM stack-traces can appear in a single call hierarchy. Using the JVM mixed-mode profilers, it is possible to collect stack-traces leading to:
 \begin{itemize}
 	\item \textbf{Page Faults} - page faults are useful to show which JVM code triggered growth of the memory of the application.
 	\item \textbf{Context Switches} - context switches are used to determine code paths that often lead to CPU switches.
 	\item\textbf{Disk I/O Requests} - capturing Input/Output information allows us to see code paths leading, for example, to blocking seek operation on the hard-drive.
-	\item \textbf{TCP Events} - these traces show code paths going from high-level Java code to low-level system methods such as \texttt{connect} or \texttt{accept}. They can be used to reason about the performance and good design of network communication in much better detail.
+	\item \textbf{TCP Events} - these traces show code paths going from high-level Java code to low-level system networking methods such as \texttt{connect} or \texttt{accept}. They can be used to reason about the performance and good design of network communication in much better details.
 	\item \textbf{CPU Cache Misses} - information about cache misses can be used to optimize Java code to make better use of the existing cache hierarchy.
 \end{itemize}
 
 All the information above can be visualized using special graphs called Flame graphs.
 \subsubsection{Flame Graphs}
-Flame Graphs are special graphs introduced by developer Brendan Gregg. Flame graphs are visualization for sampled stack-traces, which allows the hot paths in the code to be identified quickly. The output of a sampling or instrumentation profiler can be significantly big and therefore, visualizing can help to reason about the performance in more comfortable way. The example flame graph is shown in Figure \ref{fig:flame_chart}.
+Flame Graphs are special graphs introduced by developer Brendan Gregg. Flame graphs are visualization for sampled stack-traces, which allows the hot paths in the code to be identified quickly. The output of a sampling or instrumentation profiler can be significantly large and therefore, visualizations can help to reason about various aspects of the application in a more comfortable way. The example Flame graph is shown in Figure \ref{fig:flame_chart}. The flame graph is a graph where:
 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.35]{flame_chart.png}
-	\caption{Flame Graph example.}
+	\caption{Flame graph example.}
 	\label{fig:flame_chart}
 \end{figure}
-The flame graph is a graph where:
+
 \begin{itemize}
 	\item Each box represents a function call on the stack.
-	\item The \textbf{y-axis} shows stack frame depth. The top function is the function which was at the moment of capturing this flame graph on the CPU. All functions underneath of it are its ancestors.
+	\item The \textbf{y-axis} shows stack frame depth. The top function is the function which was at the moment of capturing this Flame graph on the CPU. All functions underneath of it are its ancestors.
 	\item The \textbf{x-axis} shows the population of traces. It does not represent the passage of time. The function calls are usually sorted alphabetically.
 	\item The width of each box represents the time of how long the function spent on CPU.
 	\item The colors are not significant, they are just used to visually separate different function calls.
@@ -131,11 +129,11 @@ The flame graph is a graph where:
 Flame graphs can be created in a few simple steps, but it depends on the type of the profiler the user wants to use. The three steps are:
 \begin{enumerate}
 	\item Capture the stack-traces. For this step, the profiler of custom choice may be used.
-	\item Fold stacks. The stacks need to be prepared so Flame graphs can be created out of them. Scripts for most of the major profilers exist and may be used to prepare the folded stack-traces. The scripts are available on the official page for the Flame Graphs.
+	\item Fold stacks. The stacks need to be prepared so Flame graphs can be created out of them. Scripts for most of the major profilers exist and may be used to prepare the folded stack-traces. The scripts are available on the official page for the Flame graphs.
 	\item Generate the Flame graph itself using the helper script from the folded stack-traces.
 \end{enumerate}
 
-The purpose of this really short section is just to introduce the idea of Flame graphs because it's one of the future plans to add support for flame graphs into the Distrace monitoring tool developed in the scope of this thesis. For more information about the Flame graphs please visit the Brendan Gregg's blog\footnote{The blog is available at \url{http://www.brendangregg.com/flamegraphs.html}.}.
+The purpose of this short section is just to introduce the idea of Flame graphs because it's one of the future plans to add support for Flame graphs into the Distrace monitoring tool developed in the scope of this thesis. For more information about the Flame graphs, please visit the Brendan Gregg's blog\footnote{The blog is available at \url{http://www.brendangregg.com/flamegraphs.html}.}.
 \section{Byte Code Manipulation Libraries}
 Distrace highly depends on the Java bytecode instrumentation and this section gives an overview of four bytecode manipulation libraries considered to be used: Javassist, Byte Buddy, CGLib, and ASM. Since it's a core feature of the whole platform and affects both the performance and the usability of the Distrace tool, the chosen library was thoroughly reviewed before selected. The Byte Buddy library was selected and is therefore described in more details. The reasons for its selection are given in the following Chapter \ref{analysis}.
 
