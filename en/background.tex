@@ -295,32 +295,32 @@ Nanomsgxx\footnote{More information about the Nanomsgxx mapping is available at 
 Several Java bindings of the Nanomsg library exist, but only the jnanomsg library\footnote{More information about the jnanomsg mapping for the Nanomsg library is available at \url{http://niwinz.github.io/jnanomsg/latest/}.}  is described here. This language binding is built on top of the JNA (Java Native Access)\footnote{The Java Native Library is a library allowing to use native shared libraries from Java without using JNI or native code. For more information about the library, please see \url{https://github.com/java-native-access/jna}.} library. It offers all the functionalities provided by the core library, but also introduces non-blocking sockets exposed via a callback interface.
 
 \section{Java Libraries}
-This section describes some fundamental Java-related libraries and technologies on which the Distrace tool heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described, followed by the basic introduction to the Java Native Interface. The last section introduces related details of Java Virtual Machine and the Java language.
+This section describes some fundamental Java-related libraries and technologies on which the Distrace tool heavily depends. Firstly, Java Virtual Machine Tool Interface (JVMTI) is described, followed by the basic introduction to the Java Native Interface (JNI). The following three sections cover selected areas of the Java programming language and run-time platform relevant to the thesis. The first section briefly describes the class loading process for dynamically loaded classes. This is followed by an explanation of two important class loaders relevant to the thesis and lastly, the \texttt{ServiceLoader} class is shortly described.
 \subsection{JVMTI}
 \label{JVMTI}
-The JVM Tool Interface is an interface used by development and monitoring tools for communication with a JVM. It allows the user to monitor and control the application running in a Java Virtual Machine. An application communicating with the JVM using JVMTI is usually called an agent. Agents are notified via events occurring inside JVM and can react upon them. Agents run in the same process as the application itself, which reduces the delay in the communication between the application and the agent. Since the JVMTI interface is written in C, agents can be written in C or C++. 
+The JVM Tool Interface is an interface used by development and monitoring tools for communication with a JVM. It allows the user to monitor and control the application running in the Java virtual machine. The application communicating with the JVM using JVMTI is usually called an agent. Agents are notified via events occurring inside the JVM and can react upon them. Agents run in the same process as the application itself, which reduces the delay in the communication between the application and the agent. Since the JVMTI interface is written in C, agents can be written in C or C++. 
 
-JVMTI supports two modes of how an agent can be started. It can be started either in the \textbf{OnLoad} phase or in the \textbf{Live} phase. In the \textbf{OnLoad} phase, the location of the agent has to be specified and the agent is started together with the application. The agent location can be specified using two arguments:
+JVMTI supports two modes of how the agent can be started. It can be started either in the \textbf{OnLoad} phase or in the \textbf{Live} phase. In the \textbf{OnLoad} phase, the location of the agent has to be specified and the agent is started together with the application. The agent location can be specified using the following two arguments:
 \begin{itemize}
 	\item \texttt{-agentlib:<agent-lib-name>=<options>} \newline
-	In this case, the agent library to load is specified by its name and it is loaded using platform specific manner.
+	In this case, the agent library is specified by its name and it is loaded using platform specific manner.
 	\item \texttt{-agentpath:<path-to-agent>=<options>} \newline
-	In this case, the path to a location of the agent library is specified and the agent is loaded from there.
+	In this case, path to a location of the agent library is specified and the agent is loaded from there.
 \end{itemize}
 
 In the \textbf{Live} phase, the agent is dynamically attached to a running application. This approach is more flexible since it is not required to attach the agent library to the monitored application in advance. However, it brings several limitations as well.
 
-The goal of this section is not to describe full JVMTI functionality, but just to give the reader a brief introduction to the interface. For more details about the JVMTI interface, please visit the official documentation\footnote{The official JVM Tool Interface documentation describes the full API and is available at \url{https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html}.}. The following sections try to briefly describe the important parts of JVMTI relevant to the thesis.
+The goal of this section is not to describe the full JVMTI functionality, but just to give the reader a brief introduction to the interface. For more details about the JVMTI interface, please visit the official documentation\footnote{The official JVM Tool Interface documentation describes the full API and is available at \url{https://docs.oracle.com/javase/7/docs/platform/jvmti/jvmti.html}.}. The following sections try to briefly describe the important parts of JVMTI relevant to the thesis.
 
 \subsubsection{JVMTI Agent Initialization}
 \label{subsec:jvmti_init}
 When an agent is started, the following JVMTI method is always called: \linebreak \texttt{Agent\_OnLoad(JavaVM *jvm, char *options, void *reserved)}.  \linebreak This method should contain the agent initialization specific for the application. Usually, the agent initialization process consists of several phases:
 \begin{enumerate}
-	\item Optionally, parse arguments passed to the JVMTI agent.
-	\item Initialize the JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle threads switches automatically, so proper locking and thread management fully depend on the user code.
+	\item Optionally, parse the arguments passed to the JVMTI agent.
+	\item Initialize the JVMTI environment in order to be able to communicate with the observed application. JVMTI does not handle thread switches automatically, so proper locking and thread management fully depend on the user code.
 	\item Register capabilities of the JVMTI agent. The capabilities specify what are the operations the JVMTI agent can perform. The agent can be, for example, allowed to re-transform classes or react to different class hook events.
-	\item Register events the agent should react to. JVMTI does not inform the agent about all events by default, these events have to be manually defined.
-	\item Register callbacks for the events the agent is interested in. Even though the JVMTI supports more events, the interesting events for the thesis are: 
+	\item Register events the agent should react to. JVMTI does not inform the agent about all the events by default but the selected events have to be manually defined.
+	\item Register callbacks for the events the agent is interested in. Even though JVMTI supports more events, the interesting events for the thesis are: 
 		\begin{itemize}
 			\item \texttt{cbClassLoad}
 			\item \texttt{cbClassPrepare}
@@ -328,26 +328,25 @@ When an agent is started, the following JVMTI method is always called: \linebrea
 			\item \texttt{callbackVMInit}
 			\item \texttt{callbackVMDeath}
 		\end{itemize}
-	\item Optionally, initializing phase is also good for creating locks which may be later used for synchronization between different JVMTI threads.
+	\item Optionally, the initialization phase is also good for creating locks which may be later used for synchronization between different JVMTI threads.
 \end{enumerate}
 
 The user of JVMTI is also required to manually implement queuing and locking when processing multiple JVMTI events at the same time since the framework is not designed to handle these cases. \cite{JVMTI_Callbacks}.
-\subsubsection{JVMTI basic callbacks}
-As mentioned above, there are several events sent from the observed Java application. When instrumenting the code of the applications, the following callbacks are used to capture the mentioned events.
+\subsubsection{JVMTI Basic Callbacks}
+As mentioned above, there are several events sent from the observed Java application. When instrumenting the code of Java applications, the following callbacks are used to capture the mentioned events.
 \begin{itemize}
-	\item \texttt{cbClassLoad} - triggered when a class has been loaded by target JVM.
-	\item \texttt{cbClassPrepare} - triggered when a class has been prepared by target JVM. All static fields, methods, and implemented interfaces are available at this point, but no code has been executed at this phase.
-	\item \texttt{cbClassFileLoadHook} - triggered when the virtual machine obtains class file data, but before the class is loaded. Usually, class instrumentation is based on this hook, since the callback contains output argument for the instrumented bytecode.
-	\item  \texttt{callbackVMInit} - triggered when virtual machine is initialized.
-	\item  \texttt{callbackVMDeath} - triggered when the virtual machine has been closed. This event is triggered in both planned and forcible stop.
+	\item \texttt{cbClassLoad} - triggered when a class has been loaded by the target JVM.
+	\item \texttt{cbClassPrepare} - triggered when a class has been prepared by the target JVM. All static fields, methods, and implemented interfaces are available at this point, but no code has been executed so far.
+	\item \texttt{cbClassFileLoadHook} - triggered when the virtual machine obtains class file data, but before the class is loaded. Usually, class instrumentation is based on this hook since the callback contains output argument for the instrumented bytecode.
+	\item  \texttt{callbackVMInit} - triggered when the virtual machine is initialized.
+	\item  \texttt{callbackVMDeath} - triggered when the virtual machine has been closed. This event is triggered in both planned and forcible stop of the JVM.
 \end{itemize}
 
 \subsection{JNI}
 \label{JNI}
-Java Native Interface is a framework allowing Java code running in Java Virtual Machine to call native applications ( usually written in C or C++ ). It also allows native applications to access and call Java methods. All JNI operations require an instance of class \texttt{JNIEnv} to be available. This environment is always bound to a specific thread and manages the connection to the Java virtual machine. When calling a Java method from the native application, the correct method has to be first found. This is achieved by specifying the types and method signature of the method.
+Java Native Interface is a framework allowing Java code running in Java Virtual Machine to call native applications (usually written in C or C++). It also allows native applications to access and call Java methods. All JNI operations require an instance of the \texttt{JNIEnv} class to be available. This environment is always bound to a specific thread and manages the connection to the Java virtual machine. When calling a Java method from the native application, the correct method has to be found first. This is achieved by specifying the signature of the method.
 \subsubsection{Java Types Mapping}
-For each Java primitive type, there is a corresponding native type in JNI. Native types always start with the \textbf{j} as the prefix, for example, \texttt{boolean} is a Java type whereas \texttt{jboolean} as a native type.
-All other JNI reference types are referred to via \texttt{jobject} class. This means that Java arrays are accessed as \texttt{jobject} as well since at this level they are referred to as Java objects. The most important question is how the types in method signatures can be specified. There is a mapping assigning each type a signature, which is used exactly for this purpose. The following Table \ref{mapping_jni} is based on the JNI documentation\footnote{The original and more complete documentation for JNI types mapping is available at \url{http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html}.}. and describes the mapping in detail:
+For each Java primitive type, there is a corresponding native type in JNI. Native types always start with the letter \textbf{j} as the prefix. For example, \texttt{boolean} is the Java type whereas \texttt{jboolean} as the native type. All other JNI reference types are referred to via \texttt{jobject} class. This means that Java arrays are accessed as \texttt{jobject} as well since at this level they are referred to as Java objects. The most important question is how the types in method signatures can be specified. There is a mapping assigning each Java type a type signature, which is used exactly for this purpose. The following Table \ref{mapping_jni} is based on the JNI documentation\footnote{The original and more complete documentation for JNI types mapping is available at \url{http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html}.} and describes the mapping in detail:
 \begin{center}
 \begin{tabular}{ l l }
 	  \hline
@@ -363,15 +362,15 @@ All other JNI reference types are referred to via \texttt{jobject} class. This m
 	{[} type & type{[]}\ \\
 	( arg-types ) ret-type & method type \\
 \end{tabular}
-\captionof{table}{Mapping type signatures to Java types.}\label{mapping_jni}
+\captionof{table}{Mapping of type signatures to Java types.}\label{mapping_jni}
 \end{center}
 
 For example, the method: \newline \texttt{xx.yy.Person foo(int n; boolean[] arr, String s);} has the following signature:
-\texttt{(I[ZLjava/lang/String;])Lxx/yy/Person;}
+\texttt{(I[ZLjava/lang/String;)Lxx/yy/Person;}
 
-Note that in JNI, the path elements in the fully qualified class name are separated by slashes instead of dots.
+Note that in JNI, the elements of the fully qualified class name are separated by slashes instead of dots.
 \subsubsection{Example JNI Method Call}
-The method bellow demonstrates how JNI can be used to call a Java method \texttt{getClassLoader} from the native environment.
+The method bellow demonstrates how JNI can be used to call the Java method \texttt{getClassLoader} from the native environment.
 
 \begin{lstlisting}[language=c++]
         jobject getClassLoaderForClass(JNIEnv *jni, jclass clazz){
@@ -387,47 +386,43 @@ The method bellow demonstrates how JNI can be used to call a Java method \texttt
         }
 \end{lstlisting}
 
-It can be seen that the reference to the method needs to be obtained at first. This reference is used later for the method invocation itself. For the performance reasons, it is a good practice to cache the references to Java methods or objects which are accessed from JNI often, since creating the reference has some initial overhead.
+It can be seen that the reference to the method needs to be obtained first. This reference is later used for the method invocation itself. For the performance reasons, it is a good practice to cache the references to Java methods or objects, which are accessed from JNI often since creating of the references has some initial overhead.
 
-\subsection{Relevant Aspects of the  Java Language}
-This section covers selected areas of the Java programming language and run-time platform relevant to the thesis. It briefly describes the class loading process for dynamically loaded classes. This is followed by the explanation of two important class loaders relevant to the thesis and lastly, \texttt{ServiceLoader} class is shortly described.
-\subsubsection{Class Loading Process}
+\subsection{Class Loading Process}
 Java allows programs to load classes dynamically at run-time. This is achieved by the following process:
 \begin{enumerate}
 	\item \textbf{Loading} - Load the bytecode from a class file.
 	\item \textbf{Linking} - Linking is the process of incorporating a new class to the run-time state of the JVM. This phase consists of three sub-phases:
 	\begin{enumerate}
-		\item \textbf{Verification} - Ensure that type in the binary format is correct and respects JVM restrictions.
-		\item \textbf{Preparation} - This phase mainly allocates the memory for fields inside the loaded type.
-		\item \textbf{Resolution} - This phase is optional and depends on JVM implementation. Resolution is the process of transformation symbolic references in the type's constant pool into direct references. The implementation may decide to behave in a lazy way and delay resolution for the time when the type is accessed for the first time or behave in an eager way and resolve all types in advance. Constant pool contains all references to variables and methods, found during the compilation time, in the class file.
+		\item \textbf{Verification} - Ensure that the class in the binary format is correct and respects several JVM restrictions.
+		\item \textbf{Preparation} - This phase mainly allocates the memory for fields inside the loaded class.
+		\item \textbf{Resolution} - This phase is optional and depends on the JVM implementation. Resolution is the process of transforming symbolic references in the class's constant pool into direct references. The implementation may decide to behave in a lazy way and delay resolution for the time when the class is accessed for the first time or behave in an eager way and resolve all classes in advance. The constant pool contains all references to variables and methods found during the compilation time in the class file.
 	\end{enumerate}
 	\item \textbf{Linking Phase} - class (static) variables are initialized to initial values.
 \end{enumerate}
-\subsubsection{Relevant Class Loaders}
-There are several class loaders used natively in Java. However, this section describes only two, which are referenced later in the thesis. 
+\subsection{Relevant Class Loaders}
+There are several class loaders used natively in Java. However, this section describes only two of them, which are referenced later in the thesis. 
 
 \begin{itemize}
-	\item\textbf{Bootstrap class loader} \newline
-	This class loader is used to load system classes. When using the native agent, even classes loaded by bootstrap class loader can be instrumented and thus behavior of standard Java classes can be changed.
+	\item\textbf{Bootstrap Class Loader} \newline
+	This class loader is used to load system classes. When using the native agent, even classes loaded by the bootstrap class loader can be instrumented and thus behavior of standard Java classes can be changed.
 	
 	\item  \textbf{sun.reflect.DelegatingClassLoader} \newline
-	This class loader is used on the Oracle JVM as the effect of a mechanism called \textit{inflation} \cite{inflation}. Usually, reflective access to a method or a field is initially performed via JNI calls. When Oracle JVM determines that there is a repetition in calling the same method or the same field via JNI ( reflection), it creates a synthetic class\footnote{Class created dynamically at run-time}, which is used to perform this call without the JNI. This has initial speed overhead, but at the end, it speeds up the reflection calls. The classes created for this purpose are loaded and managed by exactly this class loader. 
+	This class loader is used in the Oracle JVM as the effect of a mechanism called \textit{inflation} \cite{inflation}. Usually, reflective access to a method or a field is initially performed via JNI calls. When Oracle JVM determines that there is a repetition in calling the same method or the same field via JNI (reflection), it creates a synthetic class\footnote{Synthetic class is a class created dynamically at run-time.}, which is used to perform this call without the JNI. This process has some initial speed overhead, but at the end, it speeds up the reflection calls. The synthetic classes created for this purpose are loaded and managed by the \texttt{sun.reflect.DelegatingClassLoader} class loader.
 \end{itemize}
-\subsubsection{ServiceLoader Class}
-\texttt{ServiceLoader} class is used to locate and load service providers. The service provider is an implementation of a service that is usually defined as a set of methods inside an abstract class or interface. 
-
-Service loader is used to load specific service providers at run-time. The group of service providers to be loaded can be specified via the service type, usually type of an interface or abstract class. The available service providers have to be defined in the META-INF folder of the application's JAR (Java Archive) distribution. For example, imagine there are service A and two implementations, \texttt{Impl1} and \texttt{Impl2}. In that case, META-INF folder should contain text file named A containing lines:
+\subsection{ServiceLoader Class}
+The \texttt{ServiceLoader} class is used to locate and load service providers. A service provider is an implementation of some service that is usually defined as a set of methods inside an abstract class or an interface. Service loaders are used to load specific service providers at run-time. The set of service providers to be loaded can be specified via the service type, which is usually the type of the interface or the abstract class the service is based on. The available service providers have to be defined in the META-INF folder of the application's JAR (Java ARchive) distribution. For example, imagine there are service \texttt{A} and two implementations, \texttt{Impl1} and \texttt{Impl2}. In that case, META-INF folder should contain a text file named \texttt{A} containing lines:
 \begin{center}
 \texttt{Impl1} \newline
 \texttt{Impl1}  \newline
 \end{center}
-As a result, service loaders can be used to extend the application capabilities without changing the source code. When a new implementation of a service should be supported, it just needs to be registered inside the META-INF folder and the application will automatically use the new service provider together with the rest of the service providers defined earlier.
+As the result, service loaders can be used to extend the application capabilities without changing the source code. When a new implementation of a service should be supported, it just needs to be registered inside the META-INF folder and the application can automatically use the new service provider together with the rest of the service providers defined earlier.
 \section{Logging Libraries}
-Logging can have a negative effect on the performance of the application, but sometimes it's necessary to have information from various application runs to be able to locate bugs or discover the wrong configuration. Since one of the thesis's requirements is low-overhead, the selection of logging library is important for the performance of the Distrace as well. 
+Logging can have a negative effect on the performance of the application, but sometimes it's necessary to have information from various application runs to be able to locate bugs or discover the wrong configuration. Since one of the thesis's requirements is low-overhead, the selection of logging library is important for the performance of the Distrace tool as well. 
 
-Spdlog\footnote{More information about Spdlog is available at \url{https://github.com/gabime/spdlog}.} is a fast, header only logging library written in C++11 on which this project is based on. It allows both synchronous and asynchronous logging and custom message formatting.
+Spdlog\footnote{More information about Spdlog is available at \url{https://github.com/gabime/spdlog}.} is a fast, header only, logging library written in C++11 on which this project is based on. It allows both synchronous and asynchronous logging and custom message formatting.
 \section{Docker}
-Docker\footnote{More information about Docker is available at \url{https://www.docker.com}.} is an open source project used to pack, ship and run any application as a lightweight container. It is used to package applications in prepared environments so the user does not need to worry about configuration and downloading the correct dependencies for the application. 
+Docker\footnote{More information about Docker is available at \url{https://www.docker.com}.} is an open source project used to pack, ship and run any application in lightweight containers. It is used to package applications in prepared environments so the user does not need to worry about configuration and downloading the correct dependencies for the application. 
 
 Docker Compose is an extension built on top of Docker allowing the user to specify multi-container startup script. This script can define dependencies between different containers which leads to a simple and automated way how to start a group of related applications in separated environments using one single call. 
 
