@@ -161,7 +161,7 @@ A single collected trace from this application should look as shown in Figure \r
 		\label{fig:example_trace}
 	\end{figure}
 
-Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of technical work is done automatically. The end user is only responsible for starting the application with the agent attached.
+Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of technical work is done automatically. The end-user is only responsible for starting the application with the agent attached.
 
 \section{Spans and Trace Trees}
 \label{subsec:spans}
@@ -169,7 +169,7 @@ As mentioned briefly in the previous section, spans are used to gather the infor
 
 Spans are the main concept behind capturing the distributed traces. They are entities injected to the code of the instrumented application to keep track of the communication and state between the nodes of the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
 
-Span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. A root span is the first span created inside the trace and does not have parent id attribute set up. Therefore, the user interface back-end can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node.  
+Span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. A root span is the first span created inside the trace and does not have parent id attribute set up. Therefore, the user interface backend can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node.  
 
 Span has also several additional optional fields, which are later used in the user interface. The fields are:
 \begin{itemize}
