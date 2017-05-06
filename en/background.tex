@@ -193,9 +193,9 @@ It can, therefore, be seen that in the case of interceptors, Byte Buddy does not
 
 However, Byte Buddy also provides ways how to handle setting of interceptor fields manually. It is a more technical task but required, for example, in cases when the instrumentation is performed on a different machine where the Byte Buddy framework is not available.
 \begin{enumerate}
-\item In Byte Buddy, the initialization strategy can be modified accordingly to the specific needs. The \textbf{no-op} strategy can be used, which has the effect of Byte Buddy not trying to initialize the interceptor fields and therefore, the user needs to handle the initialization. \texttt{LoadedTypeInitializer} instance can be recorded right before the class is instrumented and this observed initializer can be used later for the initialization. This is especially useful in the case the instrumentation happens in a different machine than in which the application is actually running. The initializer can be serialized together with the \texttt{Qux} \texttt{Interceptor} class to the machine with the application and a hook in the native agent can be created to call this initializer when the instrumented class is used for the first time.
+\item In Byte Buddy, the initialization strategy can be modified accordingly to some specific needs. The \textbf{no-op} strategy can be used, which has the effect of Byte Buddy not trying to initialize the interceptor fields and therefore, the user needs to explicitly handle the initialization manually. A corresponding instance of the \texttt{LoadedTypeInitializer} class can be recorded right before the original class is instrumented and this observed initializer can be used later for the initialization. This is especially useful in the case the instrumentation happens in a different machine than in which the application is actually running. The initializer can be serialized together with the \texttt{Qux} \texttt{Interceptor} class to the machine with the application and a hook in the native agent can be created to call this initializer when the instrumented class is used for the first time.
 
-\item Instead of referring to \texttt{Qux} as an instance, it can be delegated to as the static \texttt{Qux} class. In this case, no initializers have to be used since no interceptor field is required and the interception is performed via static methods. However, the interceptor class still needs to be available at run-time. This is demonstrated in the simple code bellow.
+\item Instead of using instances of the \texttt{Qux} interceptor class, we can perform the instrumentation by calling static methods on the \texttt{Qux} interceptor class. In this case, no initializers have to be used since no interceptor field is required and the interception is performed via static methods. However, the interceptor class still needs to be available at run-time. This is demonstrated in the simple code bellow.
 
 \begin{lstlisting}[language=Java]
 class Foo {
@@ -206,15 +206,12 @@ class Foo {
 }
 \end{lstlisting}
 
-\item Instead of using Interceptors API, advice API, which in-lines the code to the bytecode of the class itself, may be used.
+\item Instead of using the Interceptors API, the advice API, which in-lines the code to the bytecode of the class itself, may be used.
 \end{enumerate}
 
 
 \subsubsection{Advice API}
-Advice API is another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the interceptors, but in cases where it's possible to use it, the code is in-lined into the bytecode of the original class and therefore no other dependencies on the Byte Buddy framework are required. It is also stated in the Byte Buddy documentation that performance of the Advice API is better compared to the performance of interceptors.
-However, the instrumentation using the Advice API is only allowed before or after the matched method. This is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations. 
-
-For example, the following method may be used as an advice: 
+The Advice API is another approach how code can be instrumented in Byte Buddy. This approach is more limited compared to the Interceptors API, but in cases where it's possible to use it, the code is in-lined into the bytecode of the original class and therefore, no other dependencies on the Byte Buddy framework are required. It is also stated in the Byte Buddy documentation that performance of the Advice API is better compared to the performance of the Interceptors API. However, the instrumentation using the Advice API is only allowed before or after the matched method. This is achieved using the \texttt{Advice.onMethodEnter} and \texttt{Advice.onMethodExit} annotations. For example, the following method may be used as an advice: 
 \begin{lstlisting}[language=Java]
 class CustomAdvice {
    @Advice.OnMethodExit
@@ -226,7 +223,7 @@ class CustomAdvice {
 }   
 \end{lstlisting}
 
-The method defined inside a class on which the advice should be applied needs to be defined. This is achieved by creating an instance of \texttt{Transformer} class which specifies the method to be instrumented.
+The method defined inside a class on which the advice should be applied needs to be defined. This is achieved by creating an instance of the \texttt{Transformer} class, which specifies the method to be instrumented. This can be see in the schematic code bellow.
 
 \begin{lstlisting}[language=Java]
 class CustomTransformer implements AgentBuilder.Transformer {
@@ -245,11 +242,13 @@ class CustomTransformer implements AgentBuilder.Transformer {
 We can see that we are applying the advice on the method with name \texttt{run} but we still haven't specified the class on which the transformer should perform the transformation. This is done in the main Byte Buddy instrumentation builder object in the following way:
 
 \begin{lstlisting}[language=Java]
+...
 .type(is(Task.class))
 .transform(new CustomTransformer())
+...
 \end{lstlisting}
 
-Therefore, in this case, the \texttt{CustomAdvice} is applied on the \texttt{Task} class in the \texttt{run} method.
+Therefore, in this case, the \texttt{CustomAdvice} is applied on the \texttt{Task} class on the \texttt{run} method.
 \section{Communication Middleware}
 This thesis consists of several parts written in different languages that need to communicate together. In order to arrange communication in such a heterogeneous environment, the following libraries have been inspected.
 \subsection{Raw Sockets}
