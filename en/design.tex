@@ -6,35 +6,35 @@ Spans and their format are described next, followed by the design of the native 
 
 \section{Overview}
 \label{design:overview}
-The main purpose of the Distrace tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building the whole trace trees. Trace trees consist of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so-called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be sent to the user interface using various data collectors. Span exporters export spans in the desired format on disk or the network for further data collection. The collected data are used for spans visualization in the user interface. The user interface receives the spans from the span exporters or data collectors and presents them to the user in a form of trace trees.
+The main purpose of the Distrace tool is to collect distributed traces. In order to achieve that, the Distrace tool is based on the concept of spans. Spans are used to denote some specific part of the communication between the communicating nodes and are important elements for building whole trace trees. Trace trees consist of several spans and represent the complete task or communication, where a span inside the trace usually represents a few remote procedure calls between two neighboring nodes. The node initiating the trace creates so-called parent span and new calls started within the scope of this span create new nested spans. Created spans can be exported using different span exporters and can be sent to the user interface using various data collectors. Span exporters export spans in the desired format on disk or to the network for further data collection. The collected data are used for span visualizations in the user interface. The user interface receives the spans from the span exporters or data collectors and presents them to the user in a form of trace trees.
 
-Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created extended instrumentation server is then used for instrumenting the classes of the original application, however, spans are still located in the scope of the application itself. In order to obtain the class files for transformation, the native agent runs as part of the monitored application and sends the desired classes to the instrumentation server. The native agent is a core part of the whole platform. It is attached to the monitored application and additionally to providing the data to the instrumentation server, it is used to obtain various low-level information from the application. 
-
-The Distrace tool, therefore, consists of three main components:
+Definition of when a new span is to be created and when an existing span needs to be closed is done by a developer by extending the core instrumentation server library. The created extended instrumentation server is then used for instrumenting the classes of the original application, however, spans are still located in the scope of the monitored application. In order to obtain the class files for transformations, the native agent runs as part of the monitored application process and sends the desired classes to the instrumentation server. The native agent is the core part of the whole platform. It is attached to the monitored application and additionally to providing the data to the instrumentation server, it is used to obtain various low-level information from the application. Therefore, the Distrace tool consists of three main components:
 \begin{itemize}
-	\item Native Agent
+	\item \textbf{The Native Agent}
 	\begin{itemize}
 		\item Is used to obtain bytecode for the instrumentation.
 		\item Is used to actually apply the instrumented bytecode.
 	\end{itemize}
-	\item Instrumentation Server
+	\item \textbf{The Instrumentation Server}
 	\begin{itemize}
 		\item Instruments the classes obtained from the native agent.
-		\item Is also the base library for custom application instrumentation server.
+		\item Is also the base library for an application-specific instrumentation server.
 		\item Can contain implementations of customized span exporters.
 	\end{itemize}
-	\item User Interface
+	\item \textbf{The User Interface}
+		\begin{itemize}
+		\item Visualizes the spans received from the monitored application.
+	\end{itemize}
 \end{itemize}
 
-
-The Figure \ref{fig:architecture} denotes the basic relationships between the major parts. Instrumentation server communicates with the native again, mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be sent either via data collection agent or via one of the default span exporters explained later in this chapter. Each part is described in more detail later in this chapter. \begin{figure}
+The Figure \ref{fig:architecture} denotes the basic relationships between the major parts. The instrumentation server communicates with the native, mainly in order to instrument classes. The application communicates with the user interface by sending the spans to it. The spans can be sent either via a data collection agent or via one of the default span exporters explained later in this chapter. Each part is described in more details later in this chapter. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{architecture.png}
 	\caption{Basic relationship between the major components. }
 	\label{fig:architecture}
 \end{figure}
 
-The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other and represents tracing of a single computation, which consists of several spans. Spans denote more local computation and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be attached to the node communication. That is also a reason why in this case the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
+The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other and represents tracing of a single computation, which consists of several spans. Spans denote more local computations and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be exchanged between the communicating nodes. That is also the reason why in this case, the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.56]{full_overview.png}
