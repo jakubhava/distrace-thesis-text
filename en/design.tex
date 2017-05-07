@@ -43,21 +43,21 @@ The Figure \ref{fig:full_overview} shows how trace trees and spans are related o
 \end{figure}
 \section{Example Use Case}
 \label{design:use_case}
-In order to demonstrate an use case for which this architecture may a good fit, a small example on a simple distributed application is shown in this section. The example consists of three modules. The client module used for submitting tasks, the execution module and the module used for exporting the data. These modules can be represented as separated threads in a single application or as different nodes of the distributed application. In this example, the user always passes a task to the client module. This module performs some pre-processing and sends the task to the execution module. This module performs the computation and once it's done, sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen in Figure \ref{fig:example_arch}.
+In order to demonstrate some use case for which the Distrace tool may a good fit, a small example on a simple distributed application is shown in this section. The example consists of three modules. The client module used for submitting tasks, the execution module and the module used for exporting the data. These modules can be represented as separated threads in a single application or as different nodes of the distributed application. In this example, the user always passes a task to the client module. This module performs some pre-processing and sends the task to the execution module. This module performs the computation and once it's done, sends the data to the exporter module, which exports the data on disk and informs the client of the task completion. The architecture of the example can be seen in Figure \ref{fig:example_arch}.
 
-The goal of this example is to record and visualize how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not collect this information already, otherwise the cluster monitoring tool would not be required. For simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
+The goal of this example is to record and visualize how long the transfers between different modules last and how long the processing on each module takes. It is also assumed that the platform does not already collect this information, otherwise, the cluster monitoring tool would not be required. For the simplicity, let's also assume that each module performs the functionality in a single method. The following code sections give the schematic code of each method.
 
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.5]{example_arch.png}
-		\caption{Example architecture.}
+		\caption{Architecture of the example.}
 		\label{fig:example_arch}
 	\end{figure}
 
 
 
 \begin{itemize}
-\item \textbf{The client:}
+\item \textbf{The Client:}
 \begin{lstlisting}[language=Java]
 public acceptTask(Task task){
   preprocessTask(task)
@@ -69,7 +69,7 @@ public acceptTask(Task task){
 }
 \end{lstlisting}
 
-\item \textbf{The executor:}
+\item \textbf{The Executor:}
 \begin{lstlisting}[language=Java]
 public execute(Task task){
   TaskResult result = executeTask(task)
@@ -78,7 +78,7 @@ public execute(Task task){
 }
 \end{lstlisting}
 
-\item \textbf{The exporter:}
+\item \textbf{The Exporter:}
 \begin{lstlisting}[language=Java]
 public export(TaskResult result){
   saveToDatabase(result)
@@ -88,15 +88,15 @@ public export(TaskResult result){
 \end{lstlisting}
 \end{itemize}
 
-In order to collect this type of information and be able to reason about the relationship between the modules, these methods need to be instrumented. The instrumented code should look as in the schematic code below. Generally, the logic which keeps the track of the current trace and span needs to be injected into the code. To achieve this, developers are supposed to extend the core instrumentation server, which acts as the base library and provides them with several helper methods used to specify the instrumentation points for their applications. 
+In order to collect this type of information and be able to reason about the relationships between the modules, these methods need to be instrumented. The instrumented code should look as in the schematic code below. Generally, the logic which keeps the track of the current trace and span needs to be injected into the code of the original methods. To achieve this, developers are supposed to extend the core instrumentation server, which acts as the base library. The core server provides the developers with several helper methods used to specify the instrumentation points for their applications. 
 
 \begin{itemize}
-\item \textbf{The instrumented client:}
+\item \textbf{The Instrumented Client:}
 \begin{lstlisting}[language=Java]
 public acceptTask(Task task){
   TraceContext tc = TraceContext.create()
   tc.attachOnObject(task)
-  Span s = tc.openSpan("Main Client Span")	
+  Span s = tc.openSpan("Main_Client_Span")	
   s.addAnnotation("tskReceived", timestamp)
   ...
   preprocessTask(task)
@@ -112,11 +112,11 @@ public acceptTask(Task task){
 The \texttt{create} method creates a new trace and the \texttt{attachOnObject} method attaches the trace context on the \texttt{task} object, which is passed around the network. The method \texttt{openSpan} opens a new span encapsulating the client computation. The \texttt{addAnnotation} method is used to add application specific information to the current span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span exporter. In the default case, the data are sent to the user interface directly.
 
 
-\item \textbf{The instrumented executor:}
+\item \textbf{The Instrumented Executor:}
 \begin{lstlisting}[language=Java]
 public execute(Task task){
   TraceContext tc = TraceContext.getFromObject(task)
-  tc.openSpan("Executor span")
+  tc.openSpan("Executor_span")
   TaskResult result = executeTask(task)
   tc.attachOnObject(result)
   ...
@@ -124,13 +124,13 @@ public execute(Task task){
   tc.closeCurrentSpan()
 }
 \end{lstlisting}
-In this case, we don't create a new trace context but obtain the existing one from the \texttt{task} object on the input. A new nested span is opened within the scope of the span, created in the previous module. The current span marks the span from the previous module as its parent.
+In this case, we don't create a new trace context but obtain the existing one from the \texttt{task} object on the input. A new nested span is opened within the scope of the span created in the previous module. The current span marks the span from the previous module as its parent.
 
-\item \textbf{The instrumented exporter:}
+\item \textbf{The Instrumented Exporter:}
 \begin{lstlisting}[language=Java]
 public export(TaskResult result){
   TraceContext tc = TraceContext.getFromObject(result)
-  tc.openSpan("Exporter span")
+  tc.openSpan("Exporter_span")
   saveToDatabase(result)
   ...
   tc.closeCurrentSpan()
@@ -141,7 +141,7 @@ In this case, the meaning of the methods is the same as above.
 
 \end{itemize}
 
-The developer should extend the base instrumentation server to instrument the classes in order to have a similar format as above. The extended instrumentation server is described in Figure \ref{fig:example_extended}.
+The developer should extend the base instrumentation server to instrument the classes in a similar form as above. The extended instrumentation server is described in Figure \ref{fig:example_extended}.
 
 	\begin{figure}
 		\centering
@@ -149,10 +149,7 @@ The developer should extend the base instrumentation server to instrument the cl
 		\caption{Structure of the extended instrumentation server JAR artifact.}
 		\label{fig:example_extended}
 	\end{figure}
-
-The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the application. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. The default span exporter is used in this case and the collected spans are sent right to the Zipkin user interface. The default IP address and port of the user interface are used when they are not explicitly configured as the native agent argument.
-
-A single collected trace from this application should look as shown in Figure \ref{fig:example_trace}.
+The extended instrumentation server is run on each node or on the network and is used to perform the instrumentation requested from the native agent. The native agent has to be attached to all nodes of the distributed application prior its start and the path to the extended instrumentation server JAR needs to be set as the mandatory argument. In this case, the default span exporter is used and the collected spans are sent right to the Zipkin user interface. The default IP address and port of the user interface are used when they are not explicitly configured as the argument of the native agent. A single collected trace from this application should look as shown in Figure \ref{fig:example_trace}.
 
 	\begin{figure}
 		\centering
@@ -161,29 +158,27 @@ A single collected trace from this application should look as shown in Figure \r
 		\label{fig:example_trace}
 	\end{figure}
 
-Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise the rest of technical work is done automatically. The end-user is only responsible for starting the application with the agent attached.
+Therefore, it can be seen that the only part the developer needs to work on is the extension of the instrumentation server to specify the custom instrumentation points, otherwise, the rest of technical work is done automatically. The end-user is only responsible for starting the application with the agent attached.
 
 \section{Spans and Trace Trees}
 \label{subsec:spans}
-As mentioned briefly in the previous section, spans are used to gather the information about the distributed calls or so called, distributed stack traces. Points in the code where spans are created and closed are defined as part of the instrumentation server but since it's the most important concept in the thesis, we explain them in the separated section. 
+As mentioned briefly in the previous section, spans are used to gather the information about the distributed calls or so-called, distributed stack-traces. Points in the code where spans are created and closed are defined as part of the instrumentation server but since it's the most important concept in the thesis, we explain them in the separated section. 
 
-Spans are the main concept behind capturing the distributed traces. They are entities injected to the code of the instrumented application to keep track of the communication and state between the nodes of the distributed application. Usually, the initiator creates so called parent span and new calls started within the span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
+Spans are the main concept behind capturing the distributed traces. They are entities injected to the code of the instrumented application to keep the track of the communication and state between the nodes of the distributed application. Usually, the initiator creates so-called parent span and new nested calls started within the scope of the parent span create new nested spans. Collected spans can be processed using different span exporters and can be sent to the user interface using various data collectors.
 
-Span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. A root span is the first span created inside the trace and does not have parent id attribute set up. Therefore, the user interface backend can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node.  
-
-Span has also several additional optional fields, which are later used in the user interface. The fields are:
+Each span has several mandatory and optional attributes. The mandatory attributes are trace id, span id and parent span id. Trace id identifies one complete distributed call among all interacting nodes of the cluster. This attribute is attached automatically when a new root span is created. The root span is the first span created inside the trace and does not have parent id attribute set. Therefore, the user interface backend can distinguish between regular spans and root spans and can identify the start of the whole trace. Parent id of a span is id of a span in which scope the child span was created. The span and its parent span can be located on the same node or on different nodes of the distributed application as well. The first variant can be useful in cases where the developer requires to trace multiple threads as separated spans within a single application node. Spans have also several additional optional fields, which are later used in the user interface. The fields are:
 \begin{itemize}
 	\item \textbf{Timestamp} - when the span started.
 	\item \textbf{Duration} - how long the span lasted.
-	\item \textbf{Annotations} - annotations used to carry additional timing information about spans. For example, time when the span has been received on the receiver side or the time the span has been processed at the receiver side can be set using these annotations.
-	\item \textbf{Binary annotations} - annotations used to carry around application specific details. They can also be used to transfer information between communication nodes inside of a single span. For example, a sender can store number of bytes sent during the request and a receiver can use this information to calculate overall number of bytes received from this particular node.
+	\item \textbf{Annotations} - annotations used to carry around additional timing information about spans. For example, the time when the span has been received on the receiver side or the time the span has been processed at the receiver side can be set using these annotations.
+	\item \textbf{Binary annotations} - annotations used to carry around application specific details. They can also be used to transfer information between communication nodes inside of a single span. For example, a sender can store the number of bytes sent during the request and a receiver can use this information to calculate the overall number of bytes received from this particular node.
 \end{itemize}
-Each span has also an internal field called \textbf{flags}. The developer may store tags important to the instrumentation and these flags are transferred as part of the spans. Flags are not sent to the user interface and are only used for instrumentation purposes. For example, they can be used in case of multiple spans exist at a single moment. In this case, these spans can be annotated with special flags and the decision can be made based on this to process these spans.
+Each span has also one internal field called \textbf{flags}. The developer may store flags important to the instrumentation and these flags are transferred as part of the spans. Flags are not sent to the user interface and are only used for the instrumentation purposes. For example, they can be used in the case of multiple spans exist at a single moment and only one of them needs to be closed. In this case, these spans can be annotated with special flags and the decision of which span to close can be made based on the configured flag.
 
-Each annotation, both binary and regular, has also an endpoint information attached. This element consist of:
+Each annotation, both binary and regular, has also an endpoint information attached. The endpoint consists of:
 \begin{itemize}
-	\item \textbf{IP} - IP of the node on which this event was recorded.
-	\item \textbf{port} - port of the service which recorded the span.
+	\item \textbf{IP} - IP address of a node on which the corresponding annotation was recorded.
+	\item \textbf{port} - port of the service which recorded the annotation.
 	\item \textbf{service name} - a special name, which is used in the user interface to group and filter different traces by names.
 \end{itemize}
 
@@ -196,32 +191,28 @@ It is also important to mention that span id is created randomly. This is done i
 		\caption{Generating span ids randomly ensures that they don't overlap when they are created in parallel.}
 		\label{fig:parallel_spans}
 	\end{figure}
-If the ids were not random at different nodes of the distributed system, the parallel spans would be creating child spans with ids in the same linear sequence and therefore these spans would be overlapping, as can be seen in Figure \ref{fig:parallel_spans_overlapping}
+If the ids were not random at different nodes of the distributed system, the parallel spans would be creating child spans with ids in the same linear sequence and therefore, these spans would be overlapping as can be seen in Figure \ref{fig:parallel_spans_overlapping}
 	\begin{figure}
 		\centering
 		\includegraphics[scale=0.6]{parallel_spans_overlapping.png}
-		\caption{Generating span with the same linear sequence leads to span overlapping.}
+		\caption{Generating span ids in the same linear sequence leads to overlapping spans.}
 		\label{fig:parallel_spans_overlapping}
 	\end{figure}
 	
 The following sections contain information about how spans are exported for processing outside of the Distrace tool and also how spans are created using \texttt{TraceContext} and \texttt{TraceContextManager}.
 \subsection{Span Exporters \& Data Collectors}
 \label{design:exporter}
-Spans can be exported from the application using so called span exporters. The type of the exporter can be configured via one of the native agent configuration properties. It is important to mention that the exporter is configured globally and each span in the application is using the same exporter\footnote{Exporter is a static attributed of the \texttt{Span} entity.}. The monitored application needs to have the chosen span exporter available at run-time, since the export is performed at the scope of the monitored application. Therefore, exporters are sent to the native agent during the initialization phase and the agent puts the exporters on the application classpath.
+Spans can be exported from the application using so-called span exporters. The type of the exporter can be configured via one of the native agent configuration properties. It is important to mention that the exporter is configured globally and each span in the application is using the same exporter\footnote{Exporter is a static attribute of the \texttt{Span} entity.}. The monitored application needs to have the chosen span exporter available at run-time, since the export operation is performed at the scope of the monitored application. Therefore, exporters are sent to the native agent during the initialization phase and the native agent puts the exporters on the application classpath.
 
-The Distrace tool includes two default implementation of span exporters, but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use custom data collector. Data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in the distributed application. The Distrace tool does not implement data collection service as many services exist for this purpose. 
+The Distrace tool includes two default implementation of span exporters but also allows the developer to create new span exporters. Custom span exporters may be useful in cases when the developer wants to export the span data in a format used by different user interface or to use a custom data collector. A data collector is a service, which collects data from the specified location and stores them in a central data storage available to all nodes in the distributed application. The Distrace tool does not implement data collection service as many services exist for this purpose. 
 
-Data collected within spans are internally represented in JSON format understandable to the Zipkin user interface. This is also the reason why Distrace contains support for working with JSON data and it is explained in more detail later in Section \ref{json_gen}. This output format can be customized by the custom span exporter.
-
-The implementation details are available at Section \ref{imp:exporter}.
+Data collected within spans are internally represented in JSON format understandable to the Zipkin user interface. This is also the reason why Distrace contains support for working with JSON data and it is explained in more detail later in Section \ref{json_gen}. This output format can be customized by the custom span exporter. The implementation details are available in Section \ref{imp:exporter}.
 \subsection{Trace Context}
-Trace context is used for storing the information about the current span and also for creating new spans and closing current spans. Trace context can be attached to a specific object and thread. This is done in order to allow multiple threads to have different computation state and therefore the platform is able to capture multiple distributed traces at the same time on the same node. Trace context manager is used for attaching trace context to threads and vice-versa. It provides several operations allowing to the developer to attach trace context to a specific thread and also to get trace context from a specific thread.
+Trace context is used for storing the information about a current span and also for creating new spans and closing the current spans. The trace context can be attached to a specific object or a thread. This is done in order to allow multiple threads to have different computation state and therefore, the platform is able to capture multiple distributed traces at the same time on the same node. Trace context manager is used for attaching the trace context to threads and vice-versa. It provides several operations allowing the developer to attach the trace context to and also to get the trace context from a specific thread.
 
-Each trace is represented by trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information}. This UUID type combines 48-bit MAC address of the current device with the actual timestamp. This way it is ensured that two traces created at the same time on different nodes can not have the same identifier. The identifiers are generated in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via published native operation \texttt{getTypeOneUUID}.
+Each trace is represented by a trace context and is uniquely identified by Universally unique identifier (UUID) of type one\footnote{More UUID versions exist and are created based on different information.}. This UUID type combines 48-bit MAC address of the current device with the current timestamp. This way it is ensured that two traces created at the same time on different nodes can not have the same identifier. The identifiers are generated in the native agent using C++ library called Sole\footnote{The Sole library is available at \url{https://github.com/r-lyeh/sole} and can be used to create identifiers in C++ language.} and are made available to the Java code via published native operation \texttt{getTypeOneUUID}.
 
-The trace contact has \texttt{openNestedSpan} and \texttt{closeCurrentSpan} operations. The first operation is used to create a new nested span and set the newly created span as the current one. Nested span is opened within the scope of its parent span and remembers the parent span. A root span is created in case no current span exists. The second operation is used to close the current span.
-
-The second operation closes the the current span. This consist of two actions. The current span is exported using the configured span exporter and the parent span becomes the current span. The Figure \ref{fig:closing_spans} shows how spans are created, closed and exported. \begin{figure}
+The trace context has \texttt{openNestedSpan} and \texttt{closeCurrentSpan} operations. The first operation is used to create a new nested span and set the newly created span as the current one. The nested span is opened within the scope of its parent span and remembers the parent span. A root span is created in case no current span exists. The second operation closes the current span. This consist of two actions. The current span is exported using the configured span exporter and the parent span becomes the current span. The Figure \ref{fig:closing_spans} shows how spans are created, closed and exported. \begin{figure}
 	\centering
 	\includegraphics[scale=0.6]{closing_spans.png}
 	\caption{Creating and closing spans.}
