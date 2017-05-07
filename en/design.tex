@@ -332,45 +332,45 @@ The instrumentation of a class is triggered by the agent and it's done in two st
 The server informs the agent if it does not have the bytecode for the class available. In that case, the agent sends the class to the server and the server registers the received bytecode under the class name. Therefore, the agent does not have to send the class next time since it's already cached on the instrumentation server. The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the transformed class is sent right away without instrumenting the class again. If the cache is empty, the class is first instrumented and put into the cache. More information about the instrumentation process on the server is described in more details in Section \ref{impl:server:instr}.
 
 \subsection{Custom Service Loader}
-Service loaders are used for loading the extensions to the Distrace tool and creating the extended instrumentation server. The service loader is used for two object types: 
+Service loaders are used for loading the extensions to the Distrace tool and for creating the extended instrumentation server. The service loader is used for two object types: 
 \begin{itemize}
-	\item \textbf{Custom span exporters} - Each span exporter inherits from the abstract \texttt{SpanExporter} class.
+	\item \textbf{Custom Span Exporters} - Each span exporter inherits from the abstract \texttt{SpanExporter} class.
 	\item \textbf{Custom Interceptors} - Each interceptor has to implement the interface \texttt{Interceptor}.
 \end{itemize} 
-The user can create custom span exporters and interceptors by either inheriting the desired class or implementing the required interface. In order to allow the platform to locate the custom implementations, the name of the class has to be written inside the text file in the META-INF directory in the extended instrumentation server JAR file. The text file has to have the same name as the abstract class or the interface the particular implementation is for. For example, when the user creates a new interceptor called \texttt{x.y.InterceptorA}, the file \texttt{Interceptor} in the META-INF folder has to contain line \texttt{x.y.InterceptorA}.
+The user can create custom span exporters and interceptors by either inheriting the desired class or implementing the required interface. To ensure the platform can locate the custom implementations of the interceptors or span exporters, the name of their super class or interface has to be written inside the text file in the META-INF directory in the extended instrumentation server JAR file. The text file has to have the same name as the abstract class or the interface the particular implementation is for. For example, when the user creates a new interceptor called \texttt{x.y.InterceptorA}, the file name \texttt{Interceptor} in the META-INF folder has to contain line \texttt{x.y.InterceptorA}.
 
-Java provides service loader for this purpose. However the standard Java implementation looks up the classes defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes this was unwanted as it is only required to obtain the \texttt{Class} object representing the available implementation. Therefore a custom service loader was created. This service loader works in a very similar way as the standard Java implementation, but instead of returning the instances of loaded services, it just returns classes representing the available services. 
+Java provides service loader for this purpose. However, the standard Java implementation looks up the classes from the files defined as above and automatically creates new instances using the well-known constructors. For the thesis purposes, this was unwanted as it is only required to obtain the \texttt{Class} object representing the available implementation. Therefore, a custom service loader was created. This service loader works in a very similar way as the standard Java implementation, but instead of returning the instances of loaded services, it just returns classes representing the available services. 
 
 \section{User Interface}
 \label{sec:zipkin_ui}
-The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into the single one and presents all annotations under the given span. This allows the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface, instead of exchanging the data between the communicating nodes in order to send them at the end as one single complete span.
+The user interface receives spans and presents them in a hierarchical way so the relationships between different nodes can be seen easily. The important feature of the user interface is that the data for a single span can be sent incrementally. This means that several JSONs representing the same span can be sent with different annotations and the user interface merges these spans into the single one and presents all annotations under one given span. This allows the Distrace tool to send part of data from the sender side and part of data from the receiver side directly to the user interface, instead of exchanging the data between the communicating nodes in order to send them at the end as one single complete span.
 
-The Distrace tool is using Zipkin as default user interface. The default format for exporting spans is designed in order to be understandable by this user interface. The user is however still able to change the data format to support custom user interface via custom span exporters. This section gives an overview of Zipkin user interface and describes the Zipkin data model. The example output of a single trace in the Zipkin user interface can be seen in Figure \ref{fig:zipkin_ui}.
+The Distrace tool is using Zipkin as default user interface. The default format for exporting spans is designed to be understandable by this user interface. However, the user is still able to change the data format to support custom user interface via custom span exporters. This section gives an overview of the Zipkin user interface and describes the Zipkin data model. The example output of a single trace in the Zipkin user interface can be seen in Figure \ref{fig:zipkin_ui}.
 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.5]{zipkin_ui_example.png}
-	\caption{The example of trace output in the Zipkin user interface.}
+	\caption{An example of the trace output in the Zipkin user interface.}
 	\label{fig:zipkin_ui}
 \end{figure}
 
-Each span in the user interface is clickable and all the additional information can be seen at that level. The Distrace tool also automatically collects the stack trace at the time of span creation and closing. The example of such information screen can be seen in Figure \ref{fig:zipkin_ui_detail}.
+Each span in the user interface is clickable and all the additional information can be seen on the span information page. The Distrace tool also automatically collects the stack-traces at the time of span creation and closing. The example of such information page can be seen in Figure \ref{fig:zipkin_ui_detail}.
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.4]{zipkin_ui_detail.png}
-	\caption{The example of the detail span information.}
+	\caption{An example of the detailed span information.}
 	\label{fig:zipkin_ui_detail}
 \end{figure}
 \subsection{Zipkin Data Model}
-Zipkin requires data to be sent in JSON format. Requests to the user interface are sent as JSON arrays, where the array elements are the spans. Zipkin understands the following attributes of span object:
+Zipkin requires data to be sent in JSON format. Requests to the user interface are sent as JSON arrays, where the array elements are the spans. Zipkin understands the following attributes of the span object:
 \begin{itemize}
 	\item \textbf{traceId} - unique id representing the complete trace. It can be either 128 or 64 bit long.
 	\item \textbf{name} - human readable span name.
-	\item \textbf{id} - id of this span. At the current implementation, Zipkin user interface supports span ids only to be 64-bit long.
+	\item \textbf{id} - id of this span. At the current implementation, the Zipkin user interface supports span ids only to be 64-bit long.
 	\item \textbf{parentId} - parent id of the current span.
 	\item \textbf{timestamp} - the time of the span creation.
 	\item \textbf{duration} - the duration of the span. It is the duration between the span creation and closing.
-	\item \textbf{annotations} - array containing standard Zipkin annotations. These annotations can be handled by the user interface in a specific way, since the user interface understands the meaning of content of these annotations. Following annotations are available:
+	\item \textbf{annotations} - array containing the standard Zipkin annotations. These annotations can be handled by the user interface in a specific way, since the user interface understands the meaning of content of these annotations. Following annotations are available:
 	\begin{itemize}
 		\item \textbf{cr} : timestamp of the client receiving the span.
 		\item \textbf{cs} : timestamp of the client sending the span.
@@ -379,10 +379,10 @@ Zipkin requires data to be sent in JSON format. Requests to the user interface a
 		\item \textbf{ca} : client address.
 		\item \textbf{sa} : server address.
 	\end{itemize}
-	\item \textbf{binaryAnnotations} - array of custom annotations. For example, collected stack traces are sent as a binary annotation.
+	\item \textbf{binaryAnnotations} - array of custom annotations. For example, the collected stack-traces are sent as a binary annotation.
 \end{itemize}
 
-Except the \textbf{annotations} and \textbf{binaryAnnotations} attributes, the attributes are of simple string or number type. Annotations are objects consisting of three additional attributes - annotation value, annotation name and the endpoint. Endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans. Full example of data sent to Zipkin user interface can be:
+Except the \textbf{annotations} and \textbf{binaryAnnotations} attributes, the attributes are of simple string or numeric types. Annotations are objects consisting of three additional attributes - annotation value, annotation name and an endpoint. The endpoint is another object specifying the address and port of the node in the distributed application, where the span or particular annotation was recorded. Endpoints can also specify service name, which may be used to search for particular spans in the user interface. An example of data sent to the Zipkin user interface can be:
 \begin{lstlisting}[emph={traceId, name, id, timestamp, duration, annotations, value, endpoint, serviceName, ipv4, port, binnaryAnnotations, key},emphstyle={\textbf}]
 [
  {
