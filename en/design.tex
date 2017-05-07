@@ -220,21 +220,18 @@ The trace context has \texttt{openNestedSpan} and \texttt{closeCurrentSpan} oper
 \end{figure}
 
 \subsection{Transferring Span Information}
-In order to capture the shared state between the nodes in the distributed application or between the threads on the same application node, the span details and trace context have to be transferred between the threads or the nodes. Distrace prepares several operations for attaching trace context to either a current thread or to an object acting as the carrier of the trace information.
+In order to capture the shared state between the nodes in the distributed application or between the threads on the same application node, the trace context and span details have to be transferred between the threads or the nodes. Distrace prepares several operations for attaching the trace context to either a current thread or to an object acting as the carrier of the trace information.
 
-Usually when transferring the trace context between the threads on the same node, the copies of the trace context should be used. This is not an issue when transferring the trace context between the different nodes of the distributed application.
-
-
-The developer responsible for extending the instrumentation server can use operations like:
+Usually, when transferring the trace context between the threads on the same node, the copy of the trace context should be used. This is not an issue when transferring the trace context between the different nodes of the distributed application. The developer responsible for extending the instrumentation server can use operations like:
 \begin{itemize}
 	\item  \texttt{getTraceFromThread}
 	\item \texttt{getTraceFromObject}
 	\item \texttt{attachTraceToThread}
 	\item \texttt{attachTraceToObject}
 \end{itemize}
-More information about the trace context API is available at \ref{imp:trace_context_api}.
+More information about the trace context API is available in Section \ref{imp:trace_context_api}.
 
-There are also different variants of how spans can be closed. A span can be closed by the same node or thread who created it. In this case, attaching the trace context information to the current thread is usually sufficient. However, it is also possible that the span can be closed by different thread or node that originally created this span. In this case, the copy of the trace context should usually be created and attached to the object, which is used as the carrier of the trace context.
+There are also different variants of how spans can be closed. A span can be closed by the same node or thread who created it. In this case, attaching the trace context information to the current thread is usually sufficient. However, it is also possible that the span can be closed by a different thread or node that originally created this span. In this case, the copy of the trace context should usually be created and attached to the object, which is used as the carrier of the trace context.
 \section{Native Agent}
 \label{native_agent_design}
 The native agent is used for accessing the internal state of the monitored application and also to instrument classes so they can carry the span and trace identifiers between the application nodes. The main task of the agent is to check whether a class is required to be instrumented and if yes, send the class for the instrumentation to the server and wait for the instrumented code.
