@@ -290,48 +290,47 @@ The behavior of the native agent may be configured using arguments passed to the
 \label{sec:inst_server}
 The instrumentation server is responsible for instrumenting the bytecode received from the native agent in the separate JVM and it also acts as the base library for instrumenting specific applications. The developer extending the instrumentation server can use prepared operations to define custom instrumentation points without touching the internals of the native agent.
 
-This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class currently being loaded is required to be instrumented. If yes, the server receives the bytecode, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular, it does not take track about the distributed traces. The information about traces is contained in the instrumented classes within the monitored application.
+This section covers several design aspects of the instrumentation server, leaving the implementation details on the following sections. The core instrumentation on the server is handled by the Byte Buddy code manipulation framework. The native agent asks the server if the class currently being loaded is marked for the instrumentation. If yes, the server receives the bytecode, performs the instrumentation and sends the data back to the agent. The server does not contain any application state, in particular, it does not take track about the distributed traces. The information about traces is contained in the instrumented classes within the monitored application.
 
-The platform was designed to be configurable and deployment of the instrumentation server is supported via two approaches. The instrumentation server can be located either on the network to all nodes of the distributed application and can be shared by all nodes. This has the advantage of caching the instrumented classes. When any class is instrumented for the first time based on request from any node, it is saved and the instrumentation is not performed for other nodes. Instead, the class can be sent immediately. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same physical node. In this case, the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted in Figure \ref{fig:shared_server}.
+The platform was designed to be configurable and deployment of the instrumentation server is supported via two approaches. The instrumentation server can be located on the network available to all nodes of the distributed application and can be shared by all nodes. This has the advantage of caching the instrumented classes. When any class is instrumented for the first time based on the instrumentation request from any node, it is cached and the instrumentation is not performed again for the other nodes. Instead, the instrumented class can be sent immediately. The disadvantage of this solution is higher latency between the agent and the instrumentation server since they are usually not on the same physical node. In this case, the instrumentation server has to be manually started in advance. Architecture of this scenario is depicted in Figure \ref{fig:shared_server}.
  
  \begin{figure}
  	\centering
  	\includegraphics[scale=0.8]{shared_server.png}
- 	\caption{Architecture with the shared instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfer from the agent to the user interface.}
+ 	\caption{Architecture with the shared instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfers from the agent to the user interface.}
  	\label{fig:shared_server}
  \end{figure}
  
- The other deployment method is that the instrumentation server runs on each node of the distributed application. This has the advantage of faster communication since in this case, inter-process communication is used to communicate between monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted in Figure \ref{fig:separated_server}.
+ The other deployment method is that the instrumentation server runs on each node of the distributed application. This has the advantage of faster communication since in this case, inter-process communication is used for communication between the monitored JVM and the instrumentation server. The disadvantage of this solution is that all classes have to be instrumented on each node since there is no communication between the instrumentation servers. In this solution, the server is started automatically during the native agent initialization. Architecture of this scenario is depicted in Figure \ref{fig:separated_server}.
  
  \begin{figure}
  	\centering
  	\includegraphics[scale=0.8]{separated_server.png}
- 	\caption{Architecture with separated instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfer from the agent to the user interface.}
+ 	\caption{Architecture with the separated instrumentation server. The dotted lines represent the communication between the server and the agent, whilst the regular lines represent data transfers from the agent to the user interface.}
  	\label{fig:separated_server}
  \end{figure}
 
-Except the cached classes, the server does not contain any application state and it just reacts to the agent requests. It can accept four type of requests:
+Except the cached classes, the server does not contain any application state and it just reacts to the native agent requests. It can accept four type of requests:
 \begin{itemize}
-	\item Request for code instrumentation.
-	\item Request to store bytecode for a class on the server.
-	\item Request to send all helper classes needed by the agent such as the \texttt{Span} class or \texttt{TraceContext} class.
-	\item Request to check whether the server contains specific class or not.
+	\item Request to instrument a class.
+	\item Request to store bytecode coming from the native agent.
+	\item Request to send all helper classes needed by the agent such as the \texttt{Span} and the \texttt{TraceContext} class.
+	\item Request to check whether the server contains a specific class.
 \end{itemize}
-The server interacts in more ways with the agent, however all communication is initiated by one of these four request types.	
+The server interacts in more ways with the agent, however all communication is initiated by one of these four request types. 
 
-The instrumentation server needs to deal with several technical problems. The main issue is that the classes, which are about to be instrumented, require all other dependent classes to be available. The other issue is instrumenting the classes with circular dependencies. The server also performs several optimizations to provide faster response to the agent such as caching the instrumented classes and minimizing the communication when possible. The technical aspects of these issues and the optimizations mentioned above are described in Chapter \ref{chap:implementation}.
+The instrumentation server needs to deal with several technical problems. The main issue is that the classes, which are about to be instrumented, require all other dependent classes to be available. The other issue is instrumenting the classes with circular dependencies. The server also performs several optimizations to provide faster response to the agent such as caching the instrumented classes and minimizing the communication when possible. The technical aspects of these issues and optimizations mentioned above are described in Chapter \ref{chap:implementation}.
+
 \subsection{Instrumentation}
-The instrumentation of the class is triggered by the agent and it's done in two stages. The first stage informs the agent whether the class is already available on the instrumentation server or not. The second stage is the instrumentation step itself. The first stage is initiated by the agent and the server performs the check for class availability in three phases:
+The instrumentation of a class is triggered by the agent and it's done in two stages. The first stage informs the agent whether the class is already available on the instrumentation server or not. The second stage is the instrumentation step itself. The first stage is initiated by the agent and the server performs the check for the class availability in three phases:
 \begin{enumerate}
 	\item Check if the instrumented bytecode for this class is available.
 	\item If not, check if the original bytecode for this class is available.
-	\item If not, check if the class can be loaded using the server's context class loader. This handles the cases where the user builds the instrumentation server together with the application classes or adds the classes on the server classpath for optimization reasons.
+	\item If not, check if the class can be loaded using the server's context class loader. This handles the cases when the user builds the instrumentation server together with the application classes or adds the classes on the server classpath for the optimization reasons.
 \end{enumerate}
 
-The server informs the agent if it does not have the bytecode for the class available. In that case, the agent sends the class to the server and the server registers the received bytecode under the class name. Therefore, the agent does not have to send the class next time since it's already cached on the instrumentation server.
-The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the transformed class is sent right away without instrumenting the class again. If the cache is empty, the class is instrumented and put into the cache.
+The server informs the agent if it does not have the bytecode for the class available. In that case, the agent sends the class to the server and the server registers the received bytecode under the class name. Therefore, the agent does not have to send the class next time since it's already cached on the instrumentation server. The second stage follows the first stage immediately. If the server already contains the instrumented class in the cache, the transformed class is sent right away without instrumenting the class again. If the cache is empty, the class is first instrumented and put into the cache. More information about the instrumentation process on the server is described in more details in Section \ref{impl:server:instr}.
 
-More information about instrumentation process on the server is described in more details in Section \ref{impl:server:instr}.
 \subsection{Custom Service Loader}
 Service loaders are used for loading the extensions to the Distrace tool and creating the extended instrumentation server. The service loader is used for two object types: 
 \begin{itemize}
