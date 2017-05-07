@@ -37,7 +37,7 @@ The Figure \ref{fig:architecture} denotes the basic relationships between the ma
 The Figure \ref{fig:full_overview} shows how trace trees and spans are related on a simple two nodes example. Each trace is separated from each other and represents tracing of a single computation, which consists of several spans. Spans denote more local computations and can also contain additional application-specific information. In order to connect the information from multiple nodes, the trace information needs to be exchanged between the communicating nodes. That is also the reason why in this case, the methods \texttt{send()}, \texttt{receive()} and \texttt{process()} need to be instrumented. These methods also open and close spans at the correct places in the code.
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.56]{full_overview.png}
+	\includegraphics[scale=0.63]{full_overview.png}
 	\caption{Trace and span demonstration. }
 	\label{fig:full_overview}
 \end{figure}
