@@ -167,9 +167,9 @@ There are two ways how to instrument a class in Byte Buddy. Either using interce
 \texttt{Interceptor} is a class defining new or changed desired behavior for the method to be instrumented.  The demonstration of how Byte Buddy uses interceptors is shown on the following small example. Let's assume the class \texttt{Foo} is the original unchanged class:
 \begin{lstlisting}[language=Java]
 class Foo {
-	String bar() {
-		return "bar"; 
-	}
+  String bar() {
+    return "bar"; 
+  }
 }
 \end{lstlisting}
 	
@@ -177,15 +177,17 @@ Let's also assume that the \texttt{Interceptor} is of type \texttt{Qux}. The int
 
 \begin{lstlisting}[language=Java]
 class Foo {
-	// Requires your interceptor class to be known
-	static Qux $interceptor;
-	String bar() {
-		return $interceptor.intercept(); 
-	}
-	static {
-		// Requires knowing the framework
-		$interceptor = ByteBuddyFramework.defineField(Foo.class);
-	}
+  // Requires your interceptor class to be known
+  static Qux $interceptor;
+	
+  String bar() {
+    return $interceptor.intercept(); 
+  }
+	
+  static {
+    // Requires knowing the framework
+    $interceptor = ByteBuddyFramework.defineField(Foo.class);
+  }
 }
 \end{lstlisting}
 		

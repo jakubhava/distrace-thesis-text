@@ -109,7 +109,7 @@ public acceptTask(Task task){
   tc.closeCurrentSpan()
 }
 \end{lstlisting}
-The \texttt{create} method creates a new trace and the \texttt{attachOnObject} method attaches the trace context on the \texttt{task} object, which is passed around the network. The method \texttt{openSpan} opens a new span encapsulating the client computation. The \texttt{addAnnotation} method is used to add application specific information to the current span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span exporter. In the default case, the data are sent to the user interface directly.
+The \texttt{create} method creates a new trace and the \texttt{attachOnObject} method  attaches the trace context on the \texttt{task} object, which is passed around the network. The method \texttt{openSpan} opens a new span encapsulating the client computation. The \texttt{addAnnotation} method is used to add application specific information to the current span. The \texttt{closeCurrentSpan} method is used to close the current span and export the content using the provided span exporter. In the default case, the data are sent to the user interface directly.
 
 
 \item \textbf{The Instrumented Executor:}
