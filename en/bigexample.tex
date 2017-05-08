@@ -90,67 +90,66 @@ Please see the Attachment 3 for the information on how to build the project from
 In order to capture the relationships between tasks and their computations, we need to instrument the methods mentioned in the previous section. It is important to always find a good pair of methods, which open and close a single span. In the case of H\textsubscript{2}O, the following calls have been identified to form good spans. The pairs are ordered from the top level spans encapsulating the whole computation to the local spans encapsulating single mapping or reduce operations.
 
 \begin{enumerate}
-	\item \texttt{dfork} - \texttt{getResult}. This pair is used to open the main span, which encapsulates the complete computation of a single \texttt{MRTask}. This is possible since the \texttt{dfork} method is only called on the node where the computation starts and the same holds for the \texttt{getResult} method after computation finished. The span is opened when the first method is entered and closed when the latter method is left.
+	\item \texttt{dfork} - \texttt{getResult}. This pair forms the main span, which encapsulates the complete computation of a single \texttt{MRTask}. This is possible since the \texttt{dfork} method is only called on the node where the computation starts and the same holds for the \texttt{getResult} method after the computation finished. The span is opened when the first method is entered and closed when the latter method is left.
 		
-	\item \texttt{setupLocal0} - \texttt{onCompletion}. This pair forms the span representing the complete communication on a single node. It encapsulates the local work as well as the waiting for the remote work to complete. This span is opened when the first method is entered and closed when the latter method is left. This span is well-defined since the \texttt{onCompletion} method is called for each task and represents that the work has been finished in all children tasks.
+	\item \texttt{setupLocal0} - \texttt{onCompletion}. This pair forms the span representing the complete computation on a single node. It encapsulates the local work as well as the waiting for the remote work to complete. This span is opened when the first method is entered and closed when the latter method is left. This span is well-defined since the \texttt{onCompletion} method is called for each task and represents that the work has been finished in all children tasks.
 	
-	\item \texttt{call} - \texttt{response}. This pair forms the span used to track only remote computation. It encapsulates the remote computation and all following sub-tasks created by the remote task. This span is opened when the first method is entered and closed when the second method is left.
+	\item \texttt{call} - \texttt{response}. This pair forms the span used to track only the remote computation. It encapsulates the remote computation and all following sub-tasks created by the remote task. This span is opened when the first method is entered and closed when the second method is left.
 	
-	\item \texttt{compute2} - \texttt{onCompletion}. This pair forms the span used to encapsulate the computation on a local node. It encapsulates all the cases of local work. In case multiple chunks exist for the given local task on the same node, this method is recursively called on split tasks until we have tasks representing a single chunk. The calls are also recursively confirmed by the \texttt{onCompletion} call. 
-	
-	In multi-chunk case, only one child task is submitted for execution into F/J thread. The second task is executed immediately in the same thread. This way it is ensured that we can reuse the existing thread as much as possible. This span is opened when the first method is entered and closed when the later method is left.
+	\item \texttt{compute2} - \texttt{onCompletion}. This pair forms the span used to encapsulate the local computation on a local node. It encapsulates all the cases of local work. In the case of multiple chunks exist for the given local task on the same node, this method is recursively called on split tasks until we have tasks representing a single chunk. The calls are also recursively confirmed by the \texttt{onCompletion} call. In multi-chunk case, only one child task is submitted for the execution into F/J thread. The second task is executed immediately in the same thread. This way it is ensured that we can reuse the existing thread as much as possible. This span is opened when the first method is entered and closed when the latter method is left.
 	
 	\item \texttt{map} - \texttt{map}. This pair represents the single mapping operation. This span is entered when the \texttt{map} method is entered and closed when the \texttt{map} method is left. Therefore, this span lasts only for the duration of the \texttt{map} method call.
 	
-	\item \texttt{reduce2} - \texttt{reduce2}. This pair represents the single reduce operation. This span is entered when the \texttt{reduce2} method is entered and closed when the \texttt{reduce2} method is left. Therefore, this span lasts only for the duration of the \texttt{reduce 2} method call.
+	\item \texttt{reduce2} - \texttt{reduce2}. This pair represents the single reduce operation. This span is entered when the \texttt{reduce2} method is entered and closed when the \texttt{reduce2} method is left. Therefore, this span lasts only for the duration of the \texttt{reduce2} method call.
 \end{enumerate}
 
-For all of the pairs above, the Advice API is used for the instrumentation because it's sufficient in our case to be able to capture just method enter and exit events. In case we would like to perform more complex instrumentation, we could use Interceptors API, which is described in the Byte Buddy documentation and briefly also in Section \ref{sec:byte_buddy}.
+For all of the pairs above, the Advice API is used for the instrumentation because it's sufficient in our case to be able to capture just method enter and exit events. In case we would like to perform more complex instrumentation, we could use the Interceptors API, which is described in the Byte Buddy documentation and briefly also in Section \ref{sec:byte_buddy}.
 
-Instrumenting these methods is a technical task and the code can be seen in the corresponding example available in the Attachment 1. The trace context information is always attached to the task transferred between the nodes. The trace context is initially created during the \texttt{dfork} method call since it's the main entry point of the computation. When instrumenting \texttt{compute2} and \texttt{setupLocal0} methods, the deep copy of the trace context is attached to the transferred task because the \texttt{onComplete} method is usually called from a different thread and this ensures there are no collisions caused by accessing the same trace context from multiple threads.
+Instrumenting these methods is a technical task and the code can be seen in the corresponding example available in the Attachment 1. The trace context information is always attached to the task transferred between the nodes. The trace context is initially created during the \texttt{dfork} method call since it's the main entry point of the computation. When instrumenting the \texttt{compute2} and \texttt{setupLocal0} methods, the deep copy of the trace context is attached to the transferred task because the closing \texttt{onComplete} method is usually called from a different thread and this ensures there are no collisions caused by accessing the same trace context from multiple threads.
 
 Also, when instrumenting a few of the mentioned methods, we need to ensure that correct pairs of spans are created and closed. For this purpose, we use flags available on the \texttt{Span} class. Flags allow us to attach additional information to the trace context, which may be used when closing the span. This is, for example, useful in cases when a method is used to close several spans at the same time and we need to properly distinguish between the spans to close the correct one.
 
-Once all the advice or interceptors are created for each of the mentioned methods above, we need to create the transformers. The transformer defines on which method from the code of the application which advice or interceptor is applied. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer for \texttt{RPC.class} defining instrumentation of the \texttt{call} and the \texttt{response} method looks like:
+Once all the advice or interceptors are created for each of the mentioned methods above, we need to create the transformers. The transformer defines on which method from the code of the application which advice or interceptor is applied. For this purpose, Distrace provides several helper methods allowing us to create transformers in a very concise way. For example, the transformer for \texttt{RPC.class} defining the instrumentation of the \texttt{call} and \texttt{response} methods looks like:
 
 \begin{lstlisting}[language=Java]
 new BaseTransformer() {
-@Override
-public DynamicType.Builder<?> 	defineTransformation(
-	DynamicType.Builder<?> builder) {
+  @Override
+  public DynamicType.Builder<?> 	defineTransformation(
+    DynamicType.Builder<?> builder) {
 
-	Method call = ReflectionUtils.getMethod(RPC.class, "call");
+    // Method to instrument
+    Method call = ReflectionUtils.getMethod(RPC.class, "call");
 
-	return builder.visit(Advice.to(RPCAdvices.call.class).on(is(call))).
-	visit(Advice.to(RPCAdvices.response.class).on(named("response")));
+    // Apply the advice on the method
+    return builder
+        .visit(Advice.to(RPCAdvices.call.class).on(is(call)))
+        .visit(Advice.to(RPCAdvices.response.class).on(named("response")));
+    }
 }
-});
 \end{lstlisting}
-The \texttt{RPCAdvices.call} static class and \texttt{RPCAdvices.response} class are the advice, which defines the instrumentation.
+The \texttt{RPCAdvices.call} and \texttt{RPCAdvices.response} static classes are the advice, which define the instrumentation.
 
-Once the transformers for each instrumented class are created, we need to associate the transformers with the classes from the application on which they should operate. We also need to create a main entry point of the extended instrumentation server. This is demonstrated on the following code snippet:
+Once the transformers for each method to be instrumented are created, we need to associate the transformers with the classes from the application on which they should operate. We also need to create a main entry point of the extended instrumentation server. This is demonstrated on the following code snippet:
 
 \begin{lstlisting}[language=Java]
- public static void main(String args[]) {
-	new Instrumentor().start(args, new MainAgentBuilder() {
-		@Override
-		public AgentBuilder createAgent(
-			BaseAgentBuilder builder,
-			String pathToHelperClasses) {
+public static void main(String args[]) {
+  new Instrumentor().start(args, new MainAgentBuilder() {
+    @Override
+    public AgentBuilder createAgent(BaseAgentBuilder builder, 
+                                      String pathToHelperClasses) {
 	 		 
-			return builder.type(isSubTypeOf(MRTask.class))
-			.transform(mrTaskTransformer)
-			.type(is(RPC.class))
-			.transform(rpcTransformer)
+	 		 return builder
+		 		.type(isSubTypeOf(MRTask.class))
+				.transform(mrTaskTransformer)
+				.type(is(RPC.class))
+				.transform(rpcTransformer)
 	         }
 	  });
 }			 
 \end{lstlisting}
-In this code, we associate a class to each transformer and also, we are starting the instrumentation server using the API provided by the core instrumentation server with the \texttt{MainAgentBuilder} instance. This instance is later used as a dispatcher of the instrumentation of the whole application.
+In this code, we associate classes containing the methods to be instrumented to the transformers handling the instrumentation of those methods. We are also starting the instrumentation server using the \texttt{start} method provided by the core instrumentation server with the \texttt{MainAgentBuilder} instance as the argument. This instance is later used as a dispatcher of the instrumentation of the whole application. Later, when starting the application with the native agent attached and configuring the agent, we need to explicitly specify the class, which is used as the main entry point of the extended instrumentation server. This is exactly the class containing the \texttt{main} method with the content above.
 
-Later, when starting the application with the native agent attached and configuring the agent, we need to explicitly specify the class, which is used as the main entry point. This is exactly the class containing the \texttt{main} method with the content above.
-
-Now we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H\textsubscript{2}O application sources. The first dependency is obvious as we are using the API defined in the library. The second library is required since we are using several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify the class to be instrumented for example by its name as \texttt{named("fully.qualified.class.name)} instead of \texttt{is(Example.class)}. The second option, however, gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located on the server and when they are requested to be instrumented, their original bytecode doesn't have to be sent from the native agent. 
+At this step, we need to build the extended instrumentation server. This server has two dependencies: the core instrumentation server and also the H\textsubscript{2}O application sources. The first dependency is obvious as we are using the API defined in the core server library. The second library is required since we are using several application classes when defining the instrumentation points. This may not be necessary when instrumenting different applications since we can identify a class to be instrumented, for example, by its name using the following element matcher \texttt{named("fully.qualified.class.name)} instead of \texttt{is(Example.class)}. However, the second option gives us more freedom when defining the instrumentation points and has also a performance benefit. In this case, the application classes are already located on the server and when they are requested to be instrumented, the  bytecode for each of these classes doesn't have to be sent from the native agent. 
 
 After this step, we should have two artifacts - the native agent library built for our platform from the previous steps and also the extended instrumentation server JAR file from this step.
 \section{Configuring and Running the Application}
