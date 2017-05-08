@@ -1,6 +1,6 @@
 \chapter{Evaluation}
 \label{chap:evaluation}
-This chapter firstly shows the measurements of how long the monitored application starts with and without the tracing enabled. These measurements are based on the case study available in Chapter \ref{chap:big_example}. This section is followed by a description of known limitations of the Distrace tool.
+This chapter firstly shows several measurements of the application run time with and without the tracing enabled. These measurements are based on the case study available in Chapter \ref{chap:big_example}. This section is followed by a description of known limitations of the Distrace tool.
 
 \section{Measuring the Tool Overhead}
 This section measures the overhead of the Distrace tool on the H\textsubscript{2}O example. We measure how long the example run from the start to end when the agent is attached and monitoring enabled and also in the opposite case. This measurement is highly specific on the type of the target program since it depends on several factors, such as the number of classes being instrumented or whether we optimised the performance of the server by adding the application classes on the classpath of the instrumentation server.
