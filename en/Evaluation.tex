@@ -3,11 +3,9 @@
 This chapter firstly shows several measurements of the application run time with and without the tracing enabled. These measurements are based on the case study available in Chapter \ref{chap:big_example}. This section is followed by a description of known limitations of the Distrace tool.
 
 \section{Measuring the Tool Overhead}
-This section measures the overhead of the Distrace tool on the H\textsubscript{2}O example. We measure how long the example run from the start to end when the agent is attached and monitoring enabled and also in the opposite case. This measurement is highly specific on the type of the target program since it depends on several factors, such as the number of classes being instrumented or whether we optimised the performance of the server by adding the application classes on the classpath of the instrumentation server.
+This section measures the overhead of the Distrace tool on the H\textsubscript{2}O example.  This measurement is highly specific on the type of the target program since it depends on several factors, such as the number of classes being instrumented or whether we optimised the performance of the server by adding the application classes on the classpath of the instrumentation server. In the all following measurements, we use the instrumentation server which has already the application classes on its classpath since it's the adviced and most generic use-case of the Distrace tool. We also run the example in the local instrumentation server mode, which means that each native agent starts the instrumentation server for each node of the distributed application automatically. The measurements have been performed on H\textsubscript{2}O cluster of size three with 16 GB memory available and Intel Core I7 quad-core CPU.
 
-In this measurement, we use instrumentation server which already has application classes on its classpath since it's the advice and most generic use-case of the Distrace tool. We also run the example in the local instrumentation server mode, which means that each native agent starts the server for the local application automatically. The measurements have been performed on H\textsubscript{2}O cluster of size three with 16 GB memory available and Intel Core I7 quad-core CPU.
-
-The following Table \ref{bench1} contains numbers in seconds how long it took to start the whole cluster of size three, with and without the instrumentation enabled.
+The following Table \ref{bench1} contains numbers in seconds how long it took to start the whole cluster of size three together with a single computation of the \texttt{SumMRTask}. It provides results when the application was started with and without the instrumentation enabled.
 
 \begin{center}
 	\begin{tabular}{ l l l }
@@ -29,9 +27,9 @@ The following Table \ref{bench1} contains numbers in seconds how long it took to
 	\end{tabular}
 	\captionof{table}{The start-up time of the whole cluster.}\label{bench1}
 \end{center}
-We can see that in this case, the average run time with monitoring enabled is on the average 10 seconds slower. This can be explained as the overhead of starting the instrumentation server from the native agent on a single machine for all three H\textsubscript{2}O nodes in the cluster.
+We can see that in this case, the average run time with the monitoring tool enabled is on the average 10 seconds slower. This can be explained as the overhead of starting the instrumentation server from the native agent on a single machine for all three H\textsubscript{2}O nodes in the cluster.
 
-The following Table \ref{bench2} shows how long only the computation of the first map-reduce task lasted with monitoring enabled and disabled.
+The following Table \ref{bench2} shows how long only the computation of the first map-reduce task lasted with the monitoring tool enabled and disabled.
 
 \begin{center}
 	\begin{tabular}{ l l l }
@@ -55,9 +53,9 @@ The following Table \ref{bench2} shows how long only the computation of the firs
 	\captionof{table}{Run time of the first map-reduce task.}\label{bench2}
 \end{center}
 
-The overhead in the case when the monitoring is enabled is caused by the instrumentation of the classes when they are first needed. We can also see that the deviation is higher in the case when instrumentation is enabled. This may be explained by the variety in transfer times of the classes between the instrumentation server and the agent.
+The overhead in the case when the monitoring is enabled is caused by the instrumentation of the classes when they are first needed. We can also see that the deviation is higher in the case when instrumentation is enabled. This may be explained by the variety in transfer times of the classes between the instrumentation server and the native agent.
 
-Lastly, the final Table \ref{bench3} shows how long each subsequent computation run, also in the case when monitoring is enabled and disabled. This means that we omit the first map-reduce task computation and measure only following calls when all instrumentation has already finished for the required classes.
+Lastly, the final Table \ref{bench3} shows how long each subsequent computation lasted with the monitoring tool enabled and disabled. This means that we omit the first map-reduce task computation and measure only the following calls when all the required classes should be already instrumented. 
 \begin{center}
 	\begin{tabular}{ l l l }
 		\hline
@@ -81,7 +79,7 @@ Lastly, the final Table \ref{bench3} shows how long each subsequent computation 
 
 \end{center}
 
-We can see that there is still overhead by the introduced monitoring, but not a significant one. This overhead is caused by the extra work introduced by the monitoring tool. This can be, for example, checking whether we are closing the correct span or exporting the span.
+We can see that there is still overhead by the introduced monitoring, but not significantly large. This overhead is caused by the extra work introduced by the injected code. This can be, for example, checking whether we are closing the correct span or exporting the span.
 
 \section{Known Limitations}
 The Distrace tool has a few limitations, which we would like to address in the future.
