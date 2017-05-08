@@ -1,14 +1,12 @@
 \chapter*{Attachment 2: List of Examples}
-The source code of the thesis contains several examples. They can be run manually by first compiling the sources and then starting using the provided scripts. The examples are also available in the provided Docker machine. This docker machine contains all compile and run-time dependencies for the tool to be able to run and examples can be run on this machine as well.
-
-The list of available examples:
+The source code of the thesis contains several examples. They can be tested manually by first compiling the sources and then by starting the examples using the provided scripts. The examples are also available in the provided Docker machine. This docker machine contains all compile and run-time dependencies for the Distrace tool to be able to run. The list of available examples:
 \begin{enumerate}
 	\item \textbf{DependencyInstrumentation} \newline
-	This example just demonstrates the basic instrumentation functionality on dependent classes. It does not have any output do the user interface.
+	This example demonstrates the basic instrumentation functionality on dependent classes. It does not have any output to the user interface.
 	\item \textbf{H2OSumMRTask} \newline
-	This larger example demonstrates the tool on the H\textsubscript{2}O  machine learning platform. The cluster of three H\textsubscript{2}O nodes is started and a simple map-reduce task is executed within this cluster. The internals of map-reduce task are monitored and the associated spans are shown in the Zipkin user interface.
+	This larger example demonstrates the Distrace tool on the H\textsubscript{2}O machine learning platform. The cluster of three H\textsubscript{2}O nodes is started and a simple map-reduce task is executed within this cluster. The internals of map-reduce task are monitored and the associated spans are shown in the Zipkin user interface.
 	\item \textbf{SingleJVMCallback} \newline
-	This example demonstrates how the Distrace tool can be used to instrument and monitor the callbacks. This example is using a single JVM with multiple threads.
+	This example demonstrates how the Distrace tool can be used to instrument and monitor callbacks. This example is using a single JVM with multiple threads.
 	\item \textbf{SingleJVMThread} \newline
-	This example shows how threads can be instrumented and monitored. This example is running on a single JVM with multiple threads.
+	This example shows how threads can be instrumented and monitored using the Distrace tool. This example is using a single JVM with multiple threads.
 \end{enumerate}
